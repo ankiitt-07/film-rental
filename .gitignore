@@ -35,6 +35,3 @@ build/
 
 # Ignore application.properties
 src/main/resources/application.properties
-
-# Ignore incorrect/typo file name
-pom.xml
