@@ -27,6 +27,6 @@ public class StoreController {
         storeRepository.save(storeMapper.toEntity(dto));
         return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
     }
-    
+
 }
 
