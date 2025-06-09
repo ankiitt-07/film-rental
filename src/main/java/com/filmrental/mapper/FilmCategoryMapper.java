@@ -3,7 +3,9 @@ package com.filmrental.mapper;
 import com.filmrental.model.dto.FilmCategoryDTO;
 import com.filmrental.model.entity.FilmCategory;
 import com.filmrental.model.entity.FilmCategoryId;
+import org.springframework.stereotype.Component;
 
+@Component
 public class FilmCategoryMapper {
 
     public static FilmCategoryDTO toDto(FilmCategory filmCategory) {

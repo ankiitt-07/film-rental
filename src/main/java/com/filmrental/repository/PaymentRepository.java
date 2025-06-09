@@ -4,10 +4,11 @@ import com.filmrental.model.entity.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+@Repository
 public interface PaymentRepository extends JpaRepository<Payment, Integer> {
 
     @Query("SELECT p.paymentDate, SUM(p.amount) FROM Payment p WHERE p.paymentDate BETWEEN :startDate AND :endDate GROUP BY p.paymentDate")

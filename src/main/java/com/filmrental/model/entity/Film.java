@@ -1,4 +1,3 @@
-
 package com.filmrental.model.entity;
 
 import jakarta.persistence.*;
@@ -7,8 +6,9 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.HashSet;
 import java.util.List;
-
+import java.util.Set;
 
 @Entity
 @Table(name = "film")
@@ -57,8 +57,8 @@ public class Film {
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
 
-    @OneToMany(mappedBy = "film")
-    private List<Actor> filmActors;
+    @ManyToMany(mappedBy = "films")
+    private Set<Actor> actors = new HashSet<>();
 
     @OneToMany(mappedBy = "film")
     private List<FilmCategory> filmCategories;

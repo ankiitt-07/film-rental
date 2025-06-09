@@ -1,11 +1,12 @@
 package com.filmrental.repository;
 
 import com.filmrental.model.entity.Rental;
+import jdk.jfr.Registered;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
+@Registered
 public interface RentalRepository extends JpaRepository<Rental, Integer> {
     List<Rental> findByCustomer_CustomerId(Integer customerId);
     List<Rental> findByInventory_InventoryId(Integer inventoryId);

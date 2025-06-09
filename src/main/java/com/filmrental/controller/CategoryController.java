@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/films")
+@RequestMapping("/api/categories")
 public class CategoryController {
 
     @Autowired
@@ -39,7 +39,7 @@ public class CategoryController {
     private FilmMapper filmMapper;
 
     // Get all categories
-    @GetMapping("/categories")
+    @GetMapping
     public ResponseEntity<List<CategoryDTO>> getAllCategories() {
         try {
             List<CategoryDTO> categories = categoryRepository.findAll()
@@ -56,7 +56,7 @@ public class CategoryController {
     }
 
     // Get category by ID
-    @GetMapping("/category/id/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<CategoryDTO> getCategoryById(@PathVariable Integer id) {
         try {
             if (id == null || id <= 0) {
@@ -71,7 +71,7 @@ public class CategoryController {
     }
 
     // Get films by category name
-    @GetMapping("/category/{category}")
+    @GetMapping("/films/{category}")
     public ResponseEntity<List<FilmDTO>> getFilmsByCategory(@PathVariable String category) {
         try {
             if (category == null || category.trim().isEmpty()) {
@@ -96,7 +96,7 @@ public class CategoryController {
     }
 
     // Create a new category
-    @PostMapping("/category")
+    @PostMapping
     public ResponseEntity<CategoryDTO> createCategory(@RequestBody CategoryDTO categoryDTO) {
         try {
             if (categoryDTO == null || categoryDTO.name() == null || categoryDTO.name().trim().isEmpty()) {
@@ -117,7 +117,7 @@ public class CategoryController {
     }
 
     // Update an existing category
-    @PutMapping("/category/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<CategoryDTO> updateCategory(@PathVariable Integer id, @RequestBody CategoryDTO categoryDTO) {
         try {
             if (id == null || id <= 0) {
@@ -138,7 +138,7 @@ public class CategoryController {
     }
 
     // Update the category of a film
-    @PutMapping("/update/category/{id}")
+    @PutMapping("/films/{id}")
     public ResponseEntity<FilmDTO> updateFilmCategory(@PathVariable Integer id, @RequestBody CategoryDTO categoryDTO) {
         try {
             if (id == null || id <= 0) {
@@ -165,7 +165,7 @@ public class CategoryController {
     }
 
     // Delete a category by ID
-    @DeleteMapping("/category/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCategory(@PathVariable Integer id) {
         try {
             if (id == null || id <= 0) {

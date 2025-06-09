@@ -74,7 +74,6 @@ public class ActorController {
         }
     }
 
-
     @PutMapping("/update/lastname/{id}")
     public ResponseEntity<ActorDTO> updateByLastName(@PathVariable Long id, @RequestBody ActorDTO actorDTO) {
         Actor actor = actorRepository.findById(id)
@@ -85,8 +84,7 @@ public class ActorController {
         return ResponseEntity.ok(mapper.toActorDto(actor));
     }
 
-
-    @PutMapping("/update/lastname/{id}")
+    @PutMapping("/update/firstname/{id}")
     public ResponseEntity<ActorDTO> updateByFirstName(@PathVariable Long id, @RequestBody ActorDTO actorDTO) {
         Actor actor = actorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
@@ -96,25 +94,19 @@ public class ActorController {
         return ResponseEntity.ok(mapper.toActorDto(actor));
     }
 
-
-
     @PutMapping("/{id}/film")
     public ResponseEntity<FilmDTO> assignFilmToActor(@PathVariable Long id, @RequestBody FilmDTO filmDTO) {
         Actor actor = actorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
         Film film = filmRepository.findById(filmDTO.filmId())
-                .orElseThrow(() -> new EntityNotFoundException("FIlm not found by Id " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Film not found by Id " + filmDTO.filmId()));
 
         actor.getFilms().add(film);
         actor.setLastUpdate(LocalDateTime.now());
         actorRepository.save(actor);
 
-        List<FilmDTO> filmdto = actor.getFilms()
-                .stream().map(mapper::toFilmDTO)
-                .toList();
         return ResponseEntity.ok(filmDTO);
     }
-
 
     @GetMapping("/{id}/films")
     public ResponseEntity<List<FilmDTO>> filmsByActorId(@PathVariable Long id) {
@@ -130,7 +122,7 @@ public class ActorController {
 
     @GetMapping("/toptenbyfilmcount")
     public ResponseEntity<List<Object[]>> topTenActorsByFilmCount() {
-        List<Actor> allActors = actorRepository.findAllWithFilms();
+        List<Actor> allActors = actorRepository.findAll();
 
         List<Object[]> topActors = allActors.stream()
                 .map(actor -> new Object[]{
@@ -144,6 +136,4 @@ public class ActorController {
 
         return ResponseEntity.ok(topActors);
     }
-
-
 }
