@@ -12,17 +12,15 @@ public class Staff {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "staff_id")
-    private Long staff_id;
+    private Integer staffId;
 
     @Column(name = "first_name")
-    private String first_name;
+    private String firstName;
 
     @Column(name = "last_name")
-    private String last_name;
+    private String lastName;
 
     private String email;
-
-    private String phone;
 
     private Boolean active;
 

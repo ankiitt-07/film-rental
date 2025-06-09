@@ -4,7 +4,7 @@ import com.filmrental.model.dto.RentalDTO;
 import com.filmrental.model.entity.Rental;
 
 public class RentalMapper {
-    // Convert Entity → DTO
+
     public static RentalDTO toDto(Rental rental) {
         if (rental == null) return null;
 
@@ -12,11 +12,13 @@ public class RentalMapper {
                 rental.getRentalId(),
                 rental.getRentalDate(),
                 rental.getReturnDate(),
-                rental.getLastUpdate()
+                rental.getLastUpdate(),
+                rental.getInventory() != null ? rental.getInventory().getInventoryId() : null,
+                rental.getCustomer() != null ? rental.getCustomer().getCustomerId() : null,
+                rental.getStaff() != null ? rental.getStaff().getStaffId() : null
         );
     }
 
-    // Convert DTO → Entity (partial — does not map relationships)
     public static Rental toEntity(RentalDTO dto) {
         if (dto == null) return null;
 
@@ -25,8 +27,6 @@ public class RentalMapper {
         rental.setRentalDate(dto.rentalDate());
         rental.setReturnDate(dto.returnDate());
         rental.setLastUpdate(dto.lastUpdate());
-
-        // Relationships like inventory, customer, staff need to be set manually
         return rental;
     }
 }

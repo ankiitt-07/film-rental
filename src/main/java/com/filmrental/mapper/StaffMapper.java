@@ -1,30 +1,35 @@
 package com.filmrental.mapper;
 
-import com.filmrental.model.dto.AddressDTO;
 import com.filmrental.model.dto.StaffDTO;
-import com.filmrental.model.entity.Address;
 import com.filmrental.model.entity.Staff;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
-@Mapper(componentModel = "spring")
-public interface StaffMapper {
-    @Mapping(source = "staff_id", target = "staff_id")
-    @Mapping(source = "first_name", target = "first_name")
-    @Mapping(source = "last_name", target = "last_name")
-    @Mapping(source = "store.store_id", target = "store_id")
-    @Mapping(source = "address.address_id", target = "address_id")
-    StaffDTO staffToDTO(Staff staff);
+public class StaffMapper {
 
-    @Mapping(source = "staff_id", target = "staff_id")
-    @Mapping(source = "first_name", target = "first_name")
-    @Mapping(source = "last_name", target = "last_name")
-    @Mapping(source = "store_id", target = "store.store_id")
-    @Mapping(source = "address_id", target = "address.address_id")
-    Staff DTOToStaff(StaffDTO staffDTO);
+    public static StaffDTO toDto(Staff staff) {
+        if (staff == null) return null;
 
-    @Mapping(source = "city.city", target = "city")
-    @Mapping(source = "city.country.country", target = "country")
-    @Mapping(source = "postal_code", target = "postal_code")
-    AddressDTO addressToDTO(Address address);
+        StaffDTO dto = new StaffDTO();
+        dto.setStaffId(staff.getStaffId());
+        dto.setFirstName(staff.getFirstName());
+        dto.setLastName(staff.getLastName());
+        dto.setEmail(staff.getEmail());
+        dto.setActive(staff.getActive());
+        dto.setPicture(staff.getPicture());
+        dto.setStoreId(staff.getStore() != null ? staff.getStore().getStoreId() : null);
+        dto.setAddressId(staff.getAddress() != null ? staff.getAddress().getAddressId() : null);
+        return dto;
+    }
+
+    public static Staff toEntity(StaffDTO dto) {
+        if (dto == null) return null;
+
+        Staff staff = new Staff();
+        staff.setStaffId(dto.getStaffId());
+        staff.setFirstName(dto.getFirstName());
+        staff.setLastName(dto.getLastName());
+        staff.setEmail(dto.getEmail());
+        staff.setActive(dto.getActive());
+        staff.setPicture(dto.getPicture());
+        return staff;
+    }
 }

@@ -1,21 +1,27 @@
 package com.filmrental.mapper;
 
 import com.filmrental.model.dto.InventoryDTO;
-import com.filmrental.model.entity.Film;
 import com.filmrental.model.entity.Inventory;
-import com.filmrental.model.entity.Store;
-import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-
-@Component
 public class InventoryMapper {
 
-    public Inventory toEntity(InventoryDTO dto, Film film, Store store) {
+    public static InventoryDTO toDto(Inventory inventory) {
+        if (inventory == null) return null;
+
+        return new InventoryDTO(
+                inventory.getInventoryId(),
+                inventory.getFilm() != null ? inventory.getFilm().getFilmId() : null,
+                inventory.getStore() != null ? inventory.getStore().getStoreId() : null,
+                inventory.getLastUpdate()
+        );
+    }
+
+    public static Inventory toEntity(InventoryDTO dto) {
+        if (dto == null) return null;
+
         Inventory inventory = new Inventory();
-        inventory.setFilm(film);
-        inventory.setStore(store);
-        inventory.setLastUpdate(LocalDateTime.now());
+        inventory.setInventoryId(dto.getInventoryId());
+        inventory.setLastUpdate(dto.getLastUpdate());
         return inventory;
     }
 }

@@ -1,14 +1,11 @@
 package com.filmrental.repository;
 
-
-import com.filmrental.model.entity.City;
 import com.filmrental.model.entity.Store;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 
-@Repository
 public interface StoreRepository extends JpaRepository<Store, Integer> {
-
-    Optional<City> findByAddressCity(City city);}
+    List<Store> findByManagerStaff_StaffId(Integer staffId);
+    List<Store> findByAddress_AddressId(Short addressId);
+}

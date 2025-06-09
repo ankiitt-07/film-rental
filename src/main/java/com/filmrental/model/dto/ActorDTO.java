@@ -8,14 +8,9 @@ import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
 public class ActorDTO {
     private String firstName;
     private String lastName;
     private LocalDateTime lastUpdate;
-
-    public ActorDTO(String firstName, String lastName, LocalDateTime lastUpdate) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.lastUpdate = lastUpdate;
-    }
 }

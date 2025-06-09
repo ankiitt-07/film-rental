@@ -16,16 +16,16 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "payment_id")
-    private Long paymentId;
+    private Integer paymentId;
 
     @Column(name = "customer_id", nullable = false)
-    private Long customerId;
+    private Integer customerId;
 
     @Column(name = "staff_id", nullable = false)
-    private Long staffId;
+    private Integer staffId;
 
     @Column(name = "rental_id", nullable = false)
-    private Long rentalId;
+    private Integer rentalId;
 
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;

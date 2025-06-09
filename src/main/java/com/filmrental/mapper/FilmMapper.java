@@ -40,7 +40,6 @@ public class FilmMapper {
         film.setRating(dto.rating());
         film.setSpecialFeatures(dto.specialFeatures());
         film.setLastUpdate(dto.lastUpdate());
-
         return film;
     }
 }

@@ -2,25 +2,27 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.AddressDTO;
 import com.filmrental.model.entity.Address;
-import org.springframework.stereotype.Component;
 
-@Component
 public class AddressMapper {
 
-    public AddressDTO toAddressDTO(Address address) {
-        AddressDTO dto = new AddressDTO();
-        dto.setAddressId(address.getAddressId());
-        dto.setAddress(address.getAddress());
-        dto.setAddress2(address.getAddress2());
-        dto.setDistrict(address.getDistrict());
-        dto.setCityId(address.getCity().getCityId());
-        dto.setPostalCode(address.getPostalCode());
-        dto.setPhone(address.getPhone());
-        dto.setLastUpdate(address.getLastUpdate());
-        return dto;
+    public static AddressDTO toDto(Address address) {
+        if (address == null) return null;
+
+        return new AddressDTO(
+                address.getAddressId(),
+                address.getAddress(),
+                address.getAddress2(),
+                address.getDistrict(),
+                address.getCity() != null ? address.getCity().getCityId().shortValue() : null,
+                address.getPostalCode(),
+                address.getPhone(),
+                address.getLastUpdate()
+        );
     }
 
-    public Address toAddressEntity(AddressDTO dto) {
+    public static Address toEntity(AddressDTO dto) {
+        if (dto == null) return null;
+
         Address address = new Address();
         address.setAddressId(dto.getAddressId());
         address.setAddress(dto.getAddress());

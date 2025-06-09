@@ -1,46 +1,24 @@
 package com.filmrental.model.dto;
 
 import lombok.*;
+import org.hibernate.id.IntegralDataTypeHolder;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 
 public class PaymentRequestDTO {
 
-    private Long customerId;
-    private Long staffId;
-    private Long rentalId;
+    private Integer paymentId;
+    private Integer customerId;
+    private Integer staffId;
+    private Integer rentalId;
     private BigDecimal amount;
+    private LocalDate paymentDate;
+    LocalDateTime lastUpdate;
 
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
-    }
-
-    public Long getStaffId() {
-        return staffId;
-    }
-
-    public void setStaffId(Long staffId) {
-        this.staffId = staffId;
-    }
-
-    public Long getRentalId() {
-        return rentalId;
-    }
-
-    public void setRentalId(Long rentalId) {
-        this.rentalId = rentalId;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
 }

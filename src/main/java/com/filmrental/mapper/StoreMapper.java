@@ -2,22 +2,26 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.StoreDTO;
 import com.filmrental.model.entity.Store;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
+public class StoreMapper {
 
+    public static StoreDTO toDto(Store store) {
+        if (store == null) return null;
 
+        return new StoreDTO(
+                store.getStoreId(),
+                store.getManagerStaff() != null ? store.getManagerStaff().getStaffId() : null,
+                store.getAddress() != null ? store.getAddress().getAddressId() : null,
+                store.getLastUpdate()
+        );
+    }
 
-@Mapper(componentModel = "spring")
-public interface StoreMapper {
-    StoreMapper INSTANCE = Mappers.getMapper(StoreMapper.class);
+    public static Store toEntity(StoreDTO dto) {
+        if (dto == null) return null;
 
-    @Mapping(source = "managerStaff.staffId", target = "managerStaffId")
-    @Mapping(source = "address.addressId", target = "addressId")
-    StoreDTO toDto(Store entity);
-
-    @Mapping(source = "managerStaffId", target = "managerStaff.staffId")
-    @Mapping(source = "addressId", target = "address.addressId")
-    Store toEntity(StoreDTO dto);
+        Store store = new Store();
+        store.setStoreId(dto.getStoreId());
+        store.setLastUpdate(dto.getLastUpdate());
+        return store;
+    }
 }

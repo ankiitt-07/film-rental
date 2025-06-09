@@ -5,23 +5,23 @@ import com.filmrental.model.entity.Language;
 
 public class LanguageMapper {
 
-    public static LanguageDTO toDto(Language entity) {
-        if (entity == null) return null;
+    public static LanguageDTO toDto(Language language) {
+        if (language == null) return null;
 
         return new LanguageDTO(
-                entity.getLanguageId(),
-                entity.getName(),
-                entity.getLastUpdate()
+                language.getLanguageId(),
+                language.getName(),
+                language.getLastUpdate()
         );
     }
 
     public static Language toEntity(LanguageDTO dto) {
         if (dto == null) return null;
 
-        Language entity = new Language();
-        entity.setLanguageId(dto.languageId());
-        entity.setName(dto.name());
-        entity.setLastUpdate(dto.lastUpdate());
-        return entity;
+        Language language = new Language();
+        language.setLanguageId(dto.languageId());
+        language.setName(dto.name());
+        language.setLastUpdate(dto.lastUpdate());
+        return language;
     }
 }

@@ -1,20 +1,28 @@
 package com.filmrental.mapper;
 
-
 import com.filmrental.model.dto.CityDTO;
 import com.filmrental.model.entity.City;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
-@Mapper(componentModel = "spring")
-public interface CityMapper {
-    CityMapper INSTANCE = Mappers.getMapper(CityMapper.class);
+public class CityMapper {
 
-    @Mapping(source = "country.countryId", target = "countryId")
-    CityDTO toDto(City entity);
+    public static CityDTO toDto(City city) {
+        if (city == null) return null;
 
-    @Mapping(source = "countryId", target = "country.countryId")
-    City toEntity(CityDTO dto);
+        return new CityDTO(
+                city.getCityId(),
+                city.getCity(),
+                city.getCountry() != null ? city.getCountry().getCountryId() : null,
+                city.getLastUpdate()
+        );
+    }
+
+    public static City toEntity(CityDTO dto) {
+        if (dto == null) return null;
+
+        City city = new City();
+        city.setCityId(dto.getCityId());
+        city.setCity(dto.getCity());
+        city.setLastUpdate(dto.getLastUpdate());
+        return city;
+    }
 }
-

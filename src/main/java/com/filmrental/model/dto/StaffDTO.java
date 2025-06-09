@@ -4,13 +4,14 @@ import lombok.Data;
 
 @Data
 public class StaffDTO {
-    private Long staff_id;
-    private String first_name;
-    private String last_name;
+    private Integer staffId;
+    private String firstName;
+    private String lastName;
     private String email;
-    private String phone;
     private Boolean active;
     private String picture;
-    private Long store_id;
-    private Long address_id;
+    private Integer storeId;
+    private String userName;
+    private String password;
+    private Integer addressId;
 }
