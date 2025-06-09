@@ -2,6 +2,7 @@ package com.filmrental.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -36,7 +37,7 @@ public class Customer {
     private Boolean active;
 
     @Column(name = "create_date", nullable = false)
-    private LocalDateTime createDate;
+    private LocalDate createDate;  // Changed from LocalDateTime to LocalDate
 
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;

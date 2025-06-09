@@ -2,12 +2,13 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.CountryDTO;
 import com.filmrental.model.entity.Country;
+import org.springframework.stereotype.Component;
 
+@Component
 public class CountryMapper {
 
-    public static CountryDTO toDto(Country country) {
+    public CountryDTO toDto(Country country) {
         if (country == null) return null;
-
         return new CountryDTO(
                 country.getCountryId(),
                 country.getCountry(),
@@ -15,9 +16,8 @@ public class CountryMapper {
         );
     }
 
-    public static Country toEntity(CountryDTO dto) {
+    public Country toEntity(CountryDTO dto) {
         if (dto == null) return null;
-
         Country country = new Country();
         country.setCountryId(dto.getCountryId());
         country.setCountry(dto.getCountry());

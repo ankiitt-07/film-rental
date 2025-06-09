@@ -2,12 +2,13 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.AddressDTO;
 import com.filmrental.model.entity.Address;
+import org.springframework.stereotype.Component;
 
+@Component
 public class AddressMapper {
 
-    public static AddressDTO toDto(Address address) {
+    public AddressDTO toDto(Address address) {
         if (address == null) return null;
-
         return new AddressDTO(
                 address.getAddressId(),
                 address.getAddress(),
@@ -20,9 +21,8 @@ public class AddressMapper {
         );
     }
 
-    public static Address toEntity(AddressDTO dto) {
+    public Address toEntity(AddressDTO dto) {
         if (dto == null) return null;
-
         Address address = new Address();
         address.setAddressId(dto.getAddressId());
         address.setAddress(dto.getAddress());

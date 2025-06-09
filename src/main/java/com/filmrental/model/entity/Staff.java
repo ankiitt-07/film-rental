@@ -2,6 +2,8 @@ package com.filmrental.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -22,11 +24,18 @@ public class Staff {
 
     private String email;
 
-    private String phone;
-
     private Boolean active;
 
     private String picture;
+
+    @Column(name = "last_update", nullable = false)
+    private LocalDateTime lastUpdate = LocalDateTime.now();
+
+    @Column(name = "username", nullable = false)
+    private String username;
+
+    @Column(name = "password")
+    private String password;
 
     @ManyToOne
     @JoinColumn(name = "store_id")

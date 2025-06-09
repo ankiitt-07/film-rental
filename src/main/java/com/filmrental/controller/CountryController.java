@@ -1,6 +1,5 @@
 package com.filmrental.controller;
 
-
 import com.filmrental.mapper.CustomerMapper;
 import com.filmrental.mapper.StaffMapper;
 import com.filmrental.mapper.StoreMapper;
@@ -13,6 +12,7 @@ import com.filmrental.repository.CustomerRepository;
 import com.filmrental.repository.StaffRepository;
 import com.filmrental.repository.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
+@RequestMapping("/api")
 public class CountryController {
 
     @Autowired
@@ -43,45 +44,66 @@ public class CountryController {
     @Autowired
     private StoreMapper storeMapper;
 
-    // Get customers by country
-    @GetMapping("/api/customers/country/{country}")
+    @GetMapping("/customers/country/{country}")
     public ResponseEntity<List<CustomerDTO>> getCustomersByCountry(@PathVariable String country) {
-        Country countryEntity = countryRepository.findByCountry(country)
-                .orElseThrow(() -> new RuntimeException("Country not found: " + country));
-
-        List<CustomerDTO> customers = customerRepository.findByAddressCityCountry(countryEntity)
-                .stream()
-                .map(customerMapper::toDTO)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(customers);
+        try {
+            if (country == null || country.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid country: country name cannot be empty");
+            }
+            Country countryEntity = countryRepository.findByCountry(country)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found: " + country));
+            List<CustomerDTO> customers = customerRepository.findByAddressCityCountry(countryEntity)
+                    .stream()
+                    .map(customerMapper::toDto)
+                    .collect(Collectors.toList());
+            if (customers.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(customers);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching customers by country: " + country, e);
+        }
     }
 
-    // Get staff by country
-    @GetMapping("/api/staff/country/{country}")
+    @GetMapping("/staff/country/{country}")
     public ResponseEntity<List<StaffDTO>> getStaffByCountry(@PathVariable String country) {
-        Country countryEntity = countryRepository.findByCountry(country)
-                .orElseThrow(() -> new RuntimeException("Country not found: " + country));
-
-        List<StaffDTO> staff = staffRepository.findByAddressCityCountry(countryEntity)
-                .stream()
-                .map(staffMapper::toDTO)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(staff);
+        try {
+            if (country == null || country.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid country: country name cannot be empty");
+            }
+            Country countryEntity = countryRepository.findByCountry(country)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found: " + country));
+            List<StaffDTO> staff = staffRepository.findByAddressCityCountry(countryEntity)
+                    .stream()
+                    .map(staffMapper::staffToDTO)
+                    .collect(Collectors.toList());
+            if (staff.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(staff);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching staff by country: " + country, e);
+        }
     }
 
-    // Get stores by country
-    @GetMapping("/api/store/country/{country}")
+    @GetMapping("/store/country/{country}")
     public ResponseEntity<List<StoreDTO>> getStoresByCountry(@PathVariable String country) {
-        Country countryEntity = countryRepository.findByCountry(country)
-                .orElseThrow(() -> new RuntimeException("Country not found: " + country));
-
-        List<StoreDTO> stores = storeRepository.findByAddressCityCountry(countryEntity)
-                .stream()
-                .map(storeMapper::toDTO)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(stores);
+        try {
+            if (country == null || country.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid country: country name cannot be empty");
+            }
+            Country countryEntity = countryRepository.findByCountry(country)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found: " + country));
+            List<StoreDTO> stores = storeRepository.findByAddressCityCountry(countryEntity)
+                    .stream()
+                    .map(storeMapper::toDto)
+                    .collect(Collectors.toList());
+            if (stores.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(stores);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching stores by country: " + country, e);
+        }
     }
 }
