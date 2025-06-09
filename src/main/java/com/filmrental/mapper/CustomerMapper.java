@@ -1,6 +1,7 @@
 package com.filmrental.mapper;
 
 import com.filmrental.model.dto.CustomerDTO;
+import com.filmrental.model.entity.City;
 import com.filmrental.model.entity.Customer;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -14,4 +15,5 @@ public interface CustomerMapper {
     @Mapping(source = "storeId", target = "store.storeId")
     @Mapping(source = "addressId", target = "address.addressId")
     Customer toEntity(CustomerDTO dto);
+
 }

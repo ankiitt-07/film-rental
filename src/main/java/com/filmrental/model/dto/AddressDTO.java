@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class AddressDTO {
-    private Short addressId;
+    private Integer addressId;
     private String address;
     private String address2;
     private String district;

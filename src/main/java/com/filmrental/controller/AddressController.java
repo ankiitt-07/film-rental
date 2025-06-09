@@ -4,7 +4,9 @@ import com.filmrental.exception.ResourceNotFoundException;
 import com.filmrental.mapper.AddressMapper;
 import com.filmrental.model.dto.AddressDTO;
 import com.filmrental.model.entity.Address;
+import com.filmrental.model.entity.City;
 import com.filmrental.repository.AddressRepository;
+import com.filmrental.repository.CityRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +29,7 @@ public class AddressController {
 
     @PostMapping
     public ResponseEntity<AddressDTO> createAddress(@RequestBody AddressDTO addressDTO) {
-        City city = cityRepository.findById(addressDTO.getCityId())
+        City city = cityRepository.findById(Integer.valueOf(addressDTO.getCityId()))
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + addressDTO.getCityId()));
         Address address = addressMapper.toAddressEntity(addressDTO);
         address.setCity(city);

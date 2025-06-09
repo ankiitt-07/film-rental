@@ -7,6 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.List;
 
 
 @Entity
@@ -57,7 +58,7 @@ public class Film {
     private LocalDateTime lastUpdate;
 
     @OneToMany(mappedBy = "film")
-    private List<FilmActor> filmActors;
+    private List<Actor> filmActors;
 
     @OneToMany(mappedBy = "film")
     private List<FilmCategory> filmCategories;
