@@ -12,26 +12,22 @@ public class FilmCategory {
     @EmbeddedId
     private FilmCategoryId id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("filmId")
     @JoinColumn(name = "film_id")
     private Film film;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("categoryId")
     @JoinColumn(name = "category_id")
     private Category category;
 
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
-}
 
-@Embeddable
-@Data
-public class FilmCategoryId implements java.io.Serializable {
-    @Column(name = "film_id")
-    private Integer filmId;
-
-    @Column(name = "category_id")
-    private Integer categoryId;
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }
