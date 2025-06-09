@@ -2,12 +2,16 @@ package com.filmrental.repository;
 
 import com.filmrental.model.entity.Staff;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
+@Repository
 public interface StaffRepository extends JpaRepository<Staff, Integer> {
-    Optional<Staff> findByEmail(String email);
-    List<Staff> findByStore_StoreId(Integer storeId);
-    List<Staff> findByActive(Boolean active);
+    List<Staff> findByLastName(String lastName);
+    List<Staff> findByFirstName(String firstName);
+    Staff findByEmail(String email);
+    List<Staff> findByAddress_City_City(String city);
+    List<Staff> findByAddress_City_Country_Country(String country);
+    List<Staff> findByPhone(String phone);
 }
