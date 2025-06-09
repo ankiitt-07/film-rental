@@ -2,10 +2,12 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.CategoryDTO;
 import com.filmrental.model.entity.Category;
+import org.springframework.stereotype.Component;
 
+@Component
 public class CategoryMapper {
 
-    public static CategoryDTO toDto(Category category) {
+    public CategoryDTO toDto(Category category) {
         if (category == null) return null;
 
         return new CategoryDTO(
@@ -15,7 +17,7 @@ public class CategoryMapper {
         );
     }
 
-    public static Category toEntity(CategoryDTO dto) {
+    public Category toEntity(CategoryDTO dto) {
         if (dto == null) return null;
 
         Category category = new Category();

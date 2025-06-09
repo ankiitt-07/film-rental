@@ -1,6 +1,7 @@
 package com.filmrental.controller;
 
-import com.filmrental.model.dto.*;
+import com.filmrental.model.dto.CategoryDTO;
+import com.filmrental.model.dto.FilmDTO;
 import com.filmrental.model.entity.Category;
 import com.filmrental.model.entity.Film;
 import com.filmrental.model.entity.FilmCategory;
@@ -37,32 +38,145 @@ public class CategoryController {
     @Autowired
     private FilmMapper filmMapper;
 
-    @GetMapping("/category/{category}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByCategory(@PathVariable String category) {
-        List<Film> films = categoryRepository.findFilmsByCategoryName(category);
-        if (films.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    // Get all categories
+    @GetMapping("/categories")
+    public ResponseEntity<List<CategoryDTO>> getAllCategories() {
+        try {
+            List<CategoryDTO> categories = categoryRepository.findAll()
+                    .stream()
+                    .map(categoryMapper::toDto)
+                    .collect(Collectors.toList());
+            if (categories.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(categories);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching all categories", e);
         }
-        List<FilmDTO> filmDTOs = films.stream()
-                .map(filmMapper::toDTO)
-                .collect(Collectors.toList());
-        return new ResponseEntity<>(filmDTOs, HttpStatus.OK);
     }
 
+    // Get category by ID
+    @GetMapping("/category/id/{id}")
+    public ResponseEntity<CategoryDTO> getCategoryById(@PathVariable Integer id) {
+        try {
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid category ID: ID must be a positive integer");
+            }
+            Category category = categoryRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + id));
+            return ResponseEntity.ok(categoryMapper.toDto(category));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching category with ID: " + id, e);
+        }
+    }
+
+    // Get films by category name
+    @GetMapping("/category/{category}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByCategory(@PathVariable String category) {
+        try {
+            if (category == null || category.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid category: category name cannot be empty");
+            }
+            Category categoryEntity = categoryRepository.findByName(category)
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found: " + category));
+            List<Film> films = categoryEntity.getFilmCategories()
+                    .stream()
+                    .map(FilmCategory::getFilm)
+                    .collect(Collectors.toList());
+            if (films.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            List<FilmDTO> filmDTOs = films.stream()
+                    .map(filmMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(filmDTOs);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error fetching films for category: " + category, e);
+        }
+    }
+
+    // Create a new category
+    @PostMapping("/category")
+    public ResponseEntity<CategoryDTO> createCategory(@RequestBody CategoryDTO categoryDTO) {
+        try {
+            if (categoryDTO == null || categoryDTO.name() == null || categoryDTO.name().trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid category: category name cannot be empty");
+            }
+            Category existingCategory = categoryRepository.findByName(categoryDTO.name())
+                    .orElse(null);
+            if (existingCategory != null) {
+                throw new IllegalArgumentException("Category already exists: " + categoryDTO.name());
+            }
+            Category category = categoryMapper.toEntity(categoryDTO);
+            category.setLastUpdate(LocalDateTime.now());
+            Category savedCategory = categoryRepository.save(category);
+            return ResponseEntity.status(HttpStatus.CREATED).body(categoryMapper.toDto(savedCategory));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error creating category: " + categoryDTO.name(), e);
+        }
+    }
+
+    // Update an existing category
+    @PutMapping("/category/{id}")
+    public ResponseEntity<CategoryDTO> updateCategory(@PathVariable Integer id, @RequestBody CategoryDTO categoryDTO) {
+        try {
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid category ID: ID must be a positive integer");
+            }
+            if (categoryDTO == null || categoryDTO.name() == null || categoryDTO.name().trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid category: category name cannot be empty");
+            }
+            Category category = categoryRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + id));
+            category.setName(categoryDTO.name());
+            category.setLastUpdate(LocalDateTime.now());
+            Category updatedCategory = categoryRepository.save(category);
+            return ResponseEntity.ok(categoryMapper.toDto(updatedCategory));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating category with ID: " + id, e);
+        }
+    }
+
+    // Update the category of a film
     @PutMapping("/update/category/{id}")
     public ResponseEntity<FilmDTO> updateFilmCategory(@PathVariable Integer id, @RequestBody CategoryDTO categoryDTO) {
-        return filmRepository.findById(id).map(film -> {
-            Category category = categoryRepository.findById(categoryDTO.category_id())
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
-            // Check if a FilmCategory record exists
-            FilmCategory filmCategory = filmCategoryRepository
-                    .findByFilm_FilmIdAndCategory_CategoryId(film.getFilm_id(), category.getCategory_id())
-                    .orElse(new FilmCategory());
-            filmCategory.setFilm(film);
-            filmCategory.setCategory(category);
-            filmCategory.setLast_update(LocalDateTime.now());
-            filmCategoryRepository.save(filmCategory);
-            return new ResponseEntity<>(filmMapper.toDTO(film), HttpStatus.OK);
-        }).orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        try {
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
+            }
+            if (categoryDTO == null || categoryDTO.category_id() == null || categoryDTO.category_id() <= 0) {
+                throw new IllegalArgumentException("Invalid category: category ID must be a positive integer");
+            }
+            return filmRepository.findById(id).map(film -> {
+                Category category = categoryRepository.findById(categoryDTO.category_id())
+                        .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + categoryDTO.category_id()));
+                FilmCategory filmCategory = filmCategoryRepository
+                        .findByFilm_FilmIdAndCategory_CategoryId(film.getFilmId(), category.getCategoryId())
+                        .orElse(new FilmCategory());
+                filmCategory.setFilm(film);
+                filmCategory.setCategory(category);
+                filmCategory.setLastUpdate(LocalDateTime.now());
+                filmCategoryRepository.save(filmCategory);
+                return ResponseEntity.ok(filmMapper.toDto(film));
+            }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(null));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error updating category for film with ID: " + id, e);
+        }
+    }
+
+    // Delete a category by ID
+    @DeleteMapping("/category/{id}")
+    public ResponseEntity<Void> deleteCategory(@PathVariable Integer id) {
+        try {
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid category ID: ID must be a positive integer");
+            }
+            Category category = categoryRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + id));
+            categoryRepository.delete(category);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error deleting category with ID: " + id, e);
+        }
     }
 }
