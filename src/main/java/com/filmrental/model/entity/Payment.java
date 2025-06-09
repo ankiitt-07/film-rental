@@ -1,15 +1,15 @@
 package com.filmrental.model.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Getter
-@Setter
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "payment")
 public class Payment {
 
@@ -18,14 +18,17 @@ public class Payment {
     @Column(name = "payment_id")
     private Integer paymentId;
 
-    @Column(name = "customer_id", nullable = false)
-    private Integer customerId;
+    @ManyToOne
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
 
-    @Column(name = "staff_id", nullable = false)
-    private Integer staffId;
+    @ManyToOne
+    @JoinColumn(name = "staff_id", nullable = false)
+    private Staff staff;
 
-    @Column(name = "rental_id", nullable = false)
-    private Integer rentalId;
+    @ManyToOne
+    @JoinColumn(name = "rental_id", nullable = false)
+    private Rental rental;
 
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;
@@ -35,5 +38,4 @@ public class Payment {
 
     @Column(name = "last_update")
     private LocalDateTime lastUpdate;
-
 }

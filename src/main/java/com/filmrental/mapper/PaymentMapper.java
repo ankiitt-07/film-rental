@@ -1,7 +1,10 @@
 package com.filmrental.mapper;
 
 import com.filmrental.model.dto.PaymentRequestDTO;
+import com.filmrental.model.entity.Customer;
 import com.filmrental.model.entity.Payment;
+import com.filmrental.model.entity.Rental;
+import com.filmrental.model.entity.Staff;
 
 public class PaymentMapper {
 
@@ -10,9 +13,9 @@ public class PaymentMapper {
 
         return new PaymentRequestDTO(
                 payment.getPaymentId(),
-                payment.getCustomerId(),
-                payment.getStaffId(),
-                payment.getRentalId(),
+                payment.getCustomer() != null ? payment.getCustomer().getCustomerId() : null,
+                payment.getStaff() != null ? payment.getStaff().getStaffId() : null,
+                payment.getRental() != null ? payment.getRental().getRentalId() : null,
                 payment.getAmount(),
                 payment.getPaymentDate() != null ? payment.getPaymentDate().toLocalDate() : null,
                 payment.getLastUpdate()
@@ -24,9 +27,19 @@ public class PaymentMapper {
 
         Payment payment = new Payment();
         payment.setPaymentId(dto.getPaymentId());
-        payment.setCustomerId(dto.getCustomerId());
-        payment.setStaffId(dto.getStaffId());
-        payment.setRentalId(dto.getRentalId());
+
+        Customer customer = new Customer();
+        customer.setCustomerId(dto.getCustomerId());
+        payment.setCustomer(customer);
+
+        Staff staff = new Staff();
+        staff.setStaffId(dto.getStaffId());
+        payment.setStaff(staff);
+
+        Rental rental = new Rental();
+        rental.setRentalId(dto.getRentalId());
+        payment.setRental(rental);
+
         payment.setAmount(dto.getAmount());
         payment.setPaymentDate(dto.getPaymentDate() != null ? dto.getPaymentDate().atStartOfDay() : null);
         payment.setLastUpdate(dto.getLastUpdate());
