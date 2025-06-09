@@ -1,7 +1,5 @@
 package com.filmrental.controller;
 
-import com.filmrental.exception.ResourceNotFoundException;
-import com.filmrental.model.dto.AddressDTO;
 import com.filmrental.model.dto.StaffDTO;
 import com.filmrental.model.entity.Address;
 import com.filmrental.model.entity.Staff;
@@ -10,15 +8,12 @@ import com.filmrental.repository.AddressRepository;
 import com.filmrental.repository.StaffRepository;
 import com.filmrental.repository.StoreRepository;
 import com.filmrental.mapper.StaffMapper;
-import com.filmrental.util.ErrorMessages;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/staff")
@@ -28,226 +23,126 @@ public class StaffController {
     private StaffRepository staffRepository;
 
     @Autowired
-    private StoreRepository storeRepository;
-
-    @Autowired
     private AddressRepository addressRepository;
 
     @Autowired
-    private StaffMapper staffMapper;
+    private StoreRepository storeRepository;
 
     @PostMapping("/post")
-    public ResponseEntity<?> addStaff(@Validated(StaffDTO.Create.class) @RequestBody StaffDTO dto) {
-        if (staffRepository.findByEmail(dto.getEmail()) != null) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.EMAIL_ALREADY_EXISTS);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        if (staffRepository.findByPhone(dto.getPhone()) != null) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.PHONE_ALREADY_EXISTS);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-
-        Staff staff = staffMapper.DTOToStaff(dto);
-
-        if (dto.getStore_id() != null) {
-            Store store = storeRepository.findById(dto.getStore_id())
-                    .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.INVALID_STORE_ID));
-            staff.setStore(store);
-        }
-
-        if (dto.getAddress_id() != null) {
-            Address address = addressRepository.findById(dto.getAddress_id())
-                    .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.INVALID_ADDRESS_ID));
-            staff.setAddress(address);
-        }
-
-        staffRepository.save(staff);
-        Map<String, String> successResponse = new HashMap<>();
-        successResponse.put("message", "Record Created Successfully");
-        return ResponseEntity.status(201).body(successResponse);
-    }
-
-    @GetMapping("/firstname/{fn}")
-    public ResponseEntity<?> searchByFirstName(@PathVariable String fn) {
-        if (fn == null || fn.trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        List<StaffDTO> staffList = staffRepository.findByFirstNameContainingIgnoreCase(fn)
-                .stream()
-                .map(staffMapper::staffToDTO)
-                .toList();
-        return ResponseEntity.ok(staffList);
+    public ResponseEntity<StaffDTO> createStaff(@RequestBody StaffDTO staffDTO) {
+        Staff staff = StaffMapper.DTOToStaff(staffDTO);
+        Staff savedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(savedStaff));
     }
 
     @GetMapping("/lastname/{ln}")
-    public ResponseEntity<?> searchByLastName(@PathVariable String ln) {
-        if (ln == null || ln.trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        List<StaffDTO> staffList = staffRepository.findByLastNameContainingIgnoreCase(ln)
+    public ResponseEntity<List<StaffDTO>> getStaffByLastName(@PathVariable String ln) {
+        List<StaffDTO> staffList = staffRepository.findByLastName(ln)
                 .stream()
-                .map(staffMapper::staffToDTO)
-                .toList();
+                .map(StaffMapper::staffToDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(staffList);
+    }
+
+    @GetMapping("/firstname/{fn}")
+    public ResponseEntity<List<StaffDTO>> getStaffByFirstName(@PathVariable String fn) {
+        List<StaffDTO> staffList = staffRepository.findByFirstName(fn)
+                .stream()
+                .map(StaffMapper::staffToDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(staffList);
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<?> getByEmail(@PathVariable String email) {
-        if (email == null || email.trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
+    public ResponseEntity<StaffDTO> getStaffByEmail(@PathVariable String email) {
         Staff staff = staffRepository.findByEmail(email);
-        if (staff == null) {
-            throw new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND);
-        }
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
-    }
-
-    @GetMapping("/phone/{phone}")
-    public ResponseEntity<?> getByPhone(@PathVariable String phone) {
-        if (phone == null || !phone.matches("\\d{10}")) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        Staff staff = staffRepository.findByPhone(phone);
-        if (staff == null) {
-            throw new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND);
-        }
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
+        return staff != null
+                ? ResponseEntity.ok(StaffMapper.staffToDTO(staff))
+                : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/city/{city}")
-    public ResponseEntity<?> searchByCity(@PathVariable String city) {
-        if (city == null || city.trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        List<StaffDTO> staffList = staffRepository.findByCity(city)
+    public ResponseEntity<List<StaffDTO>> getStaffByCity(@PathVariable String city) {
+        List<StaffDTO> staffList = staffRepository.findByAddress_City_City(city)
                 .stream()
-                .map(staffMapper::staffToDTO)
-                .toList();
+                .map(StaffMapper::staffToDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(staffList);
     }
 
     @GetMapping("/country/{country}")
-    public ResponseEntity<?> searchByCountry(@PathVariable String country) {
-        if (country == null || country.trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        List<StaffDTO> staffList = staffRepository.findByCountry(country)
+    public ResponseEntity<List<StaffDTO>> getStaffByCountry(@PathVariable String country) {
+        List<StaffDTO> staffList = staffRepository.findByAddress_City_Country_Country(country)
                 .stream()
-                .map(staffMapper::staffToDTO)
-                .toList();
+                .map(StaffMapper::staffToDTO)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(staffList);
     }
 
-    @PutMapping("/update/fn/{id}")
-    public ResponseEntity<?> updateFirstName(@PathVariable Long id, @RequestBody StaffDTO dto) {
-        if (dto.getFirst_name() == null || dto.getFirst_name().trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
+    @GetMapping("/phone/{phone}")
+    public ResponseEntity<List<StaffDTO>> getStaffByPhone(@PathVariable String phone) {
+        List<StaffDTO> staffList = staffRepository.findByPhone(phone)
+                .stream()
+                .map(StaffMapper::staffToDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(staffList);
+    }
+
+    @PutMapping("/{id}/address")
+    public ResponseEntity<StaffDTO> assignAddress(@PathVariable Integer id, @RequestBody Integer addressId) {
         Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND));
-        staff.setFirst_name(dto.getFirst_name());
-        staffRepository.save(staff);
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        Address address = addressRepository.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+        staff.setAddress(address);
+        Staff updatedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(updatedStaff));
+    }
+
+    @PutMapping("/update/fn/{id}")
+    public ResponseEntity<StaffDTO> updateFirstName(@PathVariable Integer id, @RequestBody String firstName) {
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        staff.setFirstName(firstName);
+        Staff updatedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(updatedStaff));
     }
 
     @PutMapping("/update/ln/{id}")
-    public ResponseEntity<?> updateLastName(@PathVariable Long id, @RequestBody StaffDTO dto) {
-        if (dto.getLast_name() == null || dto.getLast_name().trim().isEmpty()) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
+    public ResponseEntity<StaffDTO> updateLastName(@PathVariable Integer id, @RequestBody String lastName) {
         Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND));
-        staff.setLast_name(dto.getLast_name());
-        staffRepository.save(staff);
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        staff.setLastName(lastName);
+        Staff updatedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(updatedStaff));
     }
 
     @PutMapping("/update/email/{id}")
-    public ResponseEntity<?> updateEmail(@PathVariable Long id, @RequestBody StaffDTO dto) {
-        if (dto.getEmail() == null || !dto.getEmail().matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
+    public ResponseEntity<StaffDTO> updateEmail(@PathVariable Integer id, @RequestBody String email) {
         Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND));
-        if (!dto.getEmail().equals(staff.getEmail()) && staffRepository.findByEmail(dto.getEmail()) != null) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.EMAIL_ALREADY_EXISTS);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        staff.setEmail(dto.getEmail());
-        staffRepository.save(staff);
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
-    }
-
-    @PutMapping("/update/phone/{id}")
-    public ResponseEntity<?> updatePhone(@PathVariable Long id, @RequestBody StaffDTO dto) {
-        if (dto.getPhone() == null || !dto.getPhone().matches("\\d{10}")) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_INPUT);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND));
-        if (!dto.getPhone().equals(staff.getPhone()) && staffRepository.findByPhone(dto.getPhone()) != null) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.PHONE_ALREADY_EXISTS);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
-        staff.setPhone(dto.getPhone());
-        staffRepository.save(staff);
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        staff.setEmail(email);
+        Staff updatedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(updatedStaff));
     }
 
     @PutMapping("/update/store/{id}")
-    public ResponseEntity<?> assignStore(@PathVariable Long id, @RequestBody StaffDTO dto) {
-        if (dto.getStore_id() == null) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_STORE_ID);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
+    public ResponseEntity<StaffDTO> assignStore(@PathVariable Integer id, @RequestBody Integer storeId) {
         Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND));
-        Store store = storeRepository.findById(dto.getStore_id())
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.INVALID_STORE_ID));
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
         staff.setStore(store);
-        staffRepository.save(staff);
-        return ResponseEntity.ok(staffMapper.staffToDTO(staff));
+        Staff updatedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(updatedStaff));
     }
 
-    @PutMapping(value = "/{id}/address", consumes = "application/json")
-    public ResponseEntity<?> assignAddress(@PathVariable Long id, @RequestBody StaffDTO dto) {
-        if (dto.getAddress_id() == null) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", ErrorMessages.INVALID_ADDRESS_ID);
-            return ResponseEntity.status(400).body(errorResponse);
-        }
+    @PutMapping("/update/phone/{id}")
+    public ResponseEntity<StaffDTO> updatePhone(@PathVariable Integer id, @RequestBody String phone) {
         Staff staff = staffRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.STAFF_NOT_FOUND));
-        Address address = addressRepository.findById(dto.getAddress_id())
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.INVALID_ADDRESS_ID));
-        staff.setAddress(address);
-        staffRepository.save(staff);
-        return ResponseEntity.ok(staffMapper.addressToDTO(address));
+                .orElseThrow(() -> new RuntimeException("Staff not found"));
+        staff.setPhone(phone);
+        Staff updatedStaff = staffRepository.save(staff);
+        return ResponseEntity.ok(StaffMapper.staffToDTO(updatedStaff));
     }
 }

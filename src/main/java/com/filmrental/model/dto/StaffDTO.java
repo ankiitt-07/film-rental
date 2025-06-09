@@ -8,6 +8,7 @@ public class StaffDTO {
     private String firstName;
     private String lastName;
     private String email;
+    private String phone;
     private Boolean active;
     private String picture;
     private Integer storeId;

@@ -22,9 +22,11 @@ public class Staff {
 
     private String email;
 
+    private String phone;
+
     private Boolean active;
 
-    private String picture; // store image URL
+    private String picture;
 
     @ManyToOne
     @JoinColumn(name = "store_id")
