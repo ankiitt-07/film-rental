@@ -2,7 +2,9 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.RentalDTO;
 import com.filmrental.model.entity.Rental;
+import org.springframework.stereotype.Component;
 
+@Component
 public class RentalMapper {
 
     public static RentalDTO toDto(Rental rental) {

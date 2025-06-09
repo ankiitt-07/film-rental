@@ -2,7 +2,9 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.LanguageDTO;
 import com.filmrental.model.entity.Language;
+import org.springframework.stereotype.Component;
 
+@Component
 public class LanguageMapper {
 
     public static LanguageDTO toDto(Language language) {

@@ -5,7 +5,9 @@ import com.filmrental.model.entity.Customer;
 import com.filmrental.model.entity.Payment;
 import com.filmrental.model.entity.Rental;
 import com.filmrental.model.entity.Staff;
+import org.springframework.stereotype.Component;
 
+@Component
 public class PaymentMapper {
 
     public static PaymentRequestDTO toDto(Payment payment) {

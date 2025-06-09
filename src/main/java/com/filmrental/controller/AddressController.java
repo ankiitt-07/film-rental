@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/addresses")
 public class AddressController {
 
     @Autowired
@@ -127,8 +127,8 @@ public class AddressController {
         }
     }
 
-    @PutMapping("/staff/{id}/address")
-    public ResponseEntity<StaffDTO> assignAddressToStaff(@PathVariable("id") Integer staffId, @RequestBody Integer addressId) {
+    @PutMapping("/staff/{id}/{addressId}")
+    public ResponseEntity<StaffDTO> assignAddressToStaff(@PathVariable("id") Integer staffId, @PathVariable("addressId") Integer addressId) {
         try {
             if (staffId <= 0 || addressId <= 0) {
                 throw new IllegalArgumentException("Invalid IDs: staffId and addressId must be positive integers");
@@ -198,7 +198,7 @@ public class AddressController {
         }
     }
 
-    @PutMapping("/store/{storeId}/address/{addressId}")
+    @PutMapping("/stores/{storeId}/{addressId}")
     public ResponseEntity<StoreDTO> assignAddressToStore(@PathVariable("storeId") Integer storeId, @PathVariable("addressId") Integer addressId) {
         try {
             if (storeId <= 0 || addressId <= 0) {
@@ -217,7 +217,7 @@ public class AddressController {
         }
     }
 
-    @GetMapping("/store/city/{city}")
+    @GetMapping("/stores/city/{city}")
     public ResponseEntity<List<StoreDTO>> getStoresByCity(@PathVariable("city") String city) {
         try {
             if (city == null || city.trim().isEmpty()) {
@@ -236,7 +236,7 @@ public class AddressController {
         }
     }
 
-    @GetMapping("/store/country/{country}")
+    @GetMapping("/stores/country/{country}")
     public ResponseEntity<List<StoreDTO>> getStoresByCountry(@PathVariable("country") String country) {
         try {
             if (country == null || country.trim().isEmpty()) {
@@ -255,7 +255,7 @@ public class AddressController {
         }
     }
 
-    @GetMapping("/store/phone/{phone}")
+    @GetMapping("/stores/phone/{phone}")
     public ResponseEntity<StoreDTO> getStoreByPhone(@PathVariable("phone") String phone) {
         try {
             if (phone == null || phone.trim().isEmpty()) {

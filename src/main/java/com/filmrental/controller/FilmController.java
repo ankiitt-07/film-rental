@@ -3,13 +3,19 @@ package com.filmrental.controller;
 import com.filmrental.exception.ResourceNotFoundException;
 import com.filmrental.mapper.FilmMapper;
 import com.filmrental.model.dto.FilmDTO;
+import com.filmrental.model.entity.Category;
 import com.filmrental.model.entity.Film;
+import com.filmrental.model.entity.FilmCategory;
+import com.filmrental.repository.CategoryRepository;
+import com.filmrental.repository.FilmCategoryRepository;
 import com.filmrental.repository.FilmRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +27,12 @@ public class FilmController {
 
     @Autowired
     private FilmRepository filmRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private FilmCategoryRepository filmCategoryRepository;
 
     @Autowired
     private FilmMapper filmMapper;
@@ -370,7 +382,7 @@ public class FilmController {
         }
     }
 
-    @PutMapping("/update/rentaldurtion/{id}")
+    @PutMapping("/update/rentalduration/{id}")
     public ResponseEntity<FilmDTO> updateFilmRentalDuration(@PathVariable Integer id, @RequestBody Integer rentalDuration) {
         try {
             if (rentalDuration == null || rentalDuration < 0) {
@@ -434,9 +446,28 @@ public class FilmController {
     }
 
     @PutMapping("/update/category/{id}")
-    public ResponseEntity<?> updateFilmCategory(@PathVariable Integer id, @RequestBody String category) {
+    public ResponseEntity<FilmDTO> updateFilmCategory(@PathVariable Integer id, @RequestBody Integer categoryId) {
         try {
-            throw new UnsupportedOperationException("Category update not implemented");
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
+            }
+            if (categoryId == null || categoryId <= 0) {
+                throw new IllegalArgumentException("Invalid category ID: ID must be a positive integer");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + categoryId));
+            FilmCategory filmCategory = filmCategoryRepository
+                    .findByFilm_FilmIdAndCategory_CategoryId(film.getFilmId(), category.getCategoryId())
+                    .orElse(new FilmCategory());
+            filmCategory.setFilm(film);
+            filmCategory.setCategory(category);
+            filmCategory.setLastUpdate(LocalDateTime.now());
+            filmCategoryRepository.save(filmCategory);
+            return ResponseEntity.ok(filmMapper.toDto(film));
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to update film category: " + e.getMessage());
         }
