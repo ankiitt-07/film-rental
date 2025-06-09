@@ -22,15 +22,18 @@ public class FilmController {
     @Autowired
     private FilmRepository filmRepository;
 
+    @Autowired
+    private FilmMapper filmMapper;
+
     @PostMapping("/post")
     public ResponseEntity<FilmDTO> addFilm(@RequestBody FilmDTO filmDTO) {
         try {
             if (filmDTO == null) {
                 throw new IllegalArgumentException("Film data cannot be null");
             }
-            Film film = FilmMapper.toEntity(filmDTO);
+            Film film = filmMapper.toEntity(filmDTO);
             Film savedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(FilmMapper.toDto(savedFilm));
+            return ResponseEntity.ok(filmMapper.toDto(savedFilm));
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -46,7 +49,7 @@ public class FilmController {
             }
             Film film = filmRepository.findByTitle(title)
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with title: " + title));
-            return ResponseEntity.ok(FilmMapper.toDto(film));
+            return ResponseEntity.ok(filmMapper.toDto(film));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -65,7 +68,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found for year: " + year);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -86,7 +89,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with rental duration greater than: " + rd);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -107,7 +110,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with rental duration less than: " + rd);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -128,7 +131,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with rental rate greater than: " + rate);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -149,7 +152,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with rental rate less than: " + rate);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -170,7 +173,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with length greater than: " + length);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -191,7 +194,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with length less than: " + length);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -212,7 +215,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found between years " + from + " and " + to);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -233,7 +236,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with rating greater than: " + rating);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -254,7 +257,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found with rating less than: " + rating);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -275,7 +278,7 @@ public class FilmController {
                 throw new ResourceNotFoundException("No films found for language ID: " + lang);
             }
             List<FilmDTO> filmDTOs = films.stream()
-                    .map(FilmMapper::toDto)
+                    .map(filmMapper::toDto)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(filmDTOs);
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -341,7 +344,7 @@ public class FilmController {
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setTitle(title);
             Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(FilmMapper.toDto(updatedFilm));
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -359,7 +362,7 @@ public class FilmController {
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setReleaseYear(releaseYear);
             Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(FilmMapper.toDto(updatedFilm));
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -377,7 +380,7 @@ public class FilmController {
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setRentalDuration(rentalDuration);
             Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(FilmMapper.toDto(updatedFilm));
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -395,7 +398,7 @@ public class FilmController {
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setRentalRate(rentalRate);
             Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(FilmMapper.toDto(updatedFilm));
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
@@ -413,7 +416,7 @@ public class FilmController {
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setRating(rating);
             Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(FilmMapper.toDto(updatedFilm));
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {

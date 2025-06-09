@@ -2,10 +2,12 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.FilmDTO;
 import com.filmrental.model.entity.Film;
+import org.springframework.stereotype.Component;
 
+@Component
 public class FilmMapper {
 
-    public static FilmDTO toDto(Film film) {
+    public FilmDTO toDto(Film film) {
         if (film == null) return null;
 
         return new FilmDTO(
@@ -25,7 +27,7 @@ public class FilmMapper {
         );
     }
 
-    public static Film toEntity(FilmDTO dto) {
+    public Film toEntity(FilmDTO dto) {
         if (dto == null) return null;
 
         Film film = new Film();
