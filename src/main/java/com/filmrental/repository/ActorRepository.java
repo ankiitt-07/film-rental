@@ -8,5 +8,5 @@ import java.util.List;
 public interface ActorRepository extends JpaRepository<Actor, Long> {
     List<Actor> findByFirstName(String firstName);
     List<Actor> findByLastName(String lastName);
-    List<Actor> findByFirstNameAndLastName(String firstName, String lastName);
+    boolean findByFirstNameAndLastName(String firstName, String lastName);
 }
