@@ -1,107 +1,128 @@
 package com.filmrental.controller;
 
-import com.filmrental.model.dto.InventoryDTO;
-import com.filmrental.model.entity.Film;
-import com.filmrental.model.entity.Store;
-import com.filmrental.repository.FilmRepository;
-import com.filmrental.repository.InventoryRepository;
-import com.filmrental.repository.StoreRepository;
+import com.filmrental.exception.ResourceNotFoundException;
 import com.filmrental.mapper.InventoryMapper;
+import com.filmrental.model.dto.InventoryDTO;
 import com.filmrental.model.entity.Inventory;
-import lombok.RequiredArgsConstructor;
+import com.filmrental.repository.InventoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/inventory")
-@RequiredArgsConstructor
 public class InventoryController {
 
-    private final InventoryRepository inventoryRepository;
-    private final FilmRepository filmRepository;
-    private final StoreRepository storeRepository;
-    private final InventoryMapper inventoryMapper;
+    @Autowired
+    private InventoryRepository inventoryRepository;
 
-    // 1. Add Inventory
     @PostMapping("/add")
-    public ResponseEntity<String> addInventory(@RequestBody InventoryDTO dto) {
-        Optional<Film> filmOpt = filmRepository.findById(dto.getFilmId());
-        Optional<Store> storeOpt = storeRepository.findById(dto.getStoreId());
-
-        if (filmOpt.isEmpty() || storeOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Invalid film or store ID");
+    public ResponseEntity<InventoryDTO> addFilmToStore(@RequestBody InventoryDTO inventoryDTO) {
+        try {
+            if (inventoryDTO.getFilmId() == null || inventoryDTO.getFilmId() <= 0) {
+                throw new IllegalArgumentException("Invalid film ID");
+            }
+            if (inventoryDTO.getStoreId() == null || inventoryDTO.getStoreId() <= 0) {
+                throw new IllegalArgumentException("Invalid store ID");
+            }
+            Inventory inventory = InventoryMapper.toEntity(inventoryDTO);
+            inventory.setLastUpdate(LocalDateTime.now());
+            Inventory savedInventory = inventoryRepository.save(inventory);
+            return ResponseEntity.ok(InventoryMapper.toDto(savedInventory));
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to add inventory: " + e.getMessage());
         }
-
-        Inventory inventory = inventoryMapper.toEntity(dto, filmOpt.get(), storeOpt.get());
-        inventoryRepository.save(inventory);
-        return ResponseEntity.ok("Record Created successfully");
     }
 
-    // 2. All Films Inventory
     @GetMapping("/films")
-    public ResponseEntity<List<Map<String, Object>>> getAllFilmInventory() {
-        List<Object[]> results = inventoryRepository.countAllFilms();
-        List<Map<String, Object>> response = new ArrayList<>();
-
-        for (Object[] row : results) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("title", row[0]);
-            map.put("count", row[1]);
-            response.add(map);
+    public ResponseEntity<List<InventoryDTO>> getAllFilmsInventory() {
+        try {
+            List<Inventory> inventories = inventoryRepository.findAll();
+            if (inventories.isEmpty()) {
+                throw new ResourceNotFoundException("No inventory records found");
+            }
+            List<InventoryDTO> inventoryDTOs = inventories.stream()
+                    .map(InventoryMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(inventoryDTOs);
+        } catch (ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve inventory of all films: " + e.getMessage());
         }
-
-        return ResponseEntity.ok(response);
     }
 
-    // 3. Inventory of a Store
     @GetMapping("/store/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getStoreInventory(@PathVariable Long id) {
-        List<Inventory> inventoryList = inventoryRepository.findByStoreStoreId(id);
-        Map<String, Long> filmCountMap = new HashMap<>();
-
-        for (Inventory inv : inventoryList) {
-            String title = inv.getFilm().getTitle();
-            filmCountMap.put(title, filmCountMap.getOrDefault(title, 0L) + 1);
+    public ResponseEntity<List<InventoryDTO>> getInventoryByStore(@PathVariable("id") Integer storeId) {
+        try {
+            if (storeId == null || storeId <= 0) {
+                throw new IllegalArgumentException("Invalid store ID");
+            }
+            List<Inventory> inventories = inventoryRepository.findByStoreStoreId(storeId);
+            if (inventories.isEmpty()) {
+                throw new ResourceNotFoundException("No inventory found for store ID: " + storeId);
+            }
+            List<InventoryDTO> inventoryDTOs = inventories.stream()
+                    .map(InventoryMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(inventoryDTOs);
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve inventory for store ID " + storeId + ": " + e.getMessage());
         }
-
-        List<Map<String, Object>> response = filmCountMap.entrySet().stream().map(entry -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("title", entry.getKey());
-            m.put("count", entry.getValue());
-            return m;
-        }).toList();
-
-        return ResponseEntity.ok(response);
     }
 
-    // 4. Inventory of a Film across Stores
     @GetMapping("/film/{id}")
-    public ResponseEntity<Map<String, Long>> getInventoryByFilm(@PathVariable Long id) {
-        List<Inventory> inventoryList = inventoryRepository.findByFilmFilmId(id);
-        Map<String, Long> storeCountMap = new HashMap<>();
-
-        for (Inventory inv : inventoryList) {
-            String storeName = "Store " + inv.getStore().getStoreId(); // Change if Store has name field
-            storeCountMap.put(storeName, storeCountMap.getOrDefault(storeName, 0L) + 1);
+    public ResponseEntity<List<InventoryDTO>> getInventoryByFilm(@PathVariable("id") Integer filmId) {
+        try {
+            if (filmId == null || filmId <= 0) {
+                throw new IllegalArgumentException("Invalid film ID");
+            }
+            List<Inventory> inventories = inventoryRepository.findByFilmFilmId(filmId);
+            if (inventories.isEmpty()) {
+                throw new ResourceNotFoundException("No inventory found for film ID: " + filmId);
+            }
+            List<InventoryDTO> inventoryDTOs = inventories.stream()
+                    .map(InventoryMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(inventoryDTOs);
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve inventory for film ID " + filmId + ": " + e.getMessage());
         }
-
-        return ResponseEntity.ok(storeCountMap);
     }
 
-    // 5. Inventory of a Film in a Store
     @GetMapping("/film/{filmId}/store/{storeId}")
-    public ResponseEntity<Map<String, Object>> getInventoryByFilmInStore(
-            @PathVariable Long filmId,
-            @PathVariable Long storeId
-    ) {
-        Long count = inventoryRepository.countByFilmFilmIdAndStoreStoreId(filmId, storeId);
-        Map<String, Object> result = new HashMap<>();
-        result.put("filmId", filmId);
-        result.put("storeId", storeId);
-        result.put("count", count);
-
-        return ResponseEntity.ok(result);
+    public ResponseEntity<List<InventoryDTO>> getInventoryByFilmAndStore(
+            @PathVariable("filmId") Integer filmId,
+            @PathVariable("storeId") Integer storeId) {
+        try {
+            if (filmId == null || filmId <= 0) {
+                throw new IllegalArgumentException("Invalid film ID");
+            }
+            if (storeId == null || storeId <= 0) {
+                throw new IllegalArgumentException("Invalid store ID");
+            }
+            List<Inventory> inventories = inventoryRepository.findByFilmFilmIdAndStoreStoreId(filmId, storeId);
+            if (inventories.isEmpty()) {
+                throw new ResourceNotFoundException("No inventory found for film ID " + filmId + " in store ID " + storeId);
+            }
+            List<InventoryDTO> inventoryDTOs = inventories.stream()
+                    .map(InventoryMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(inventoryDTOs);
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve inventory for film ID " + filmId + " and store ID " + storeId + ": " + e.getMessage());
+        }
     }
 }

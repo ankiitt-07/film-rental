@@ -11,6 +11,5 @@ public class InventoryDTO {
     private Integer inventoryId;
     private Integer filmId;
     private Integer storeId;
-    LocalDateTime lastUpdate;
-
+    private LocalDateTime lastUpdate;
 }

@@ -1,7 +1,9 @@
 package com.filmrental.mapper;
 
 import com.filmrental.model.dto.InventoryDTO;
+import com.filmrental.model.entity.Film;
 import com.filmrental.model.entity.Inventory;
+import com.filmrental.model.entity.Store;
 
 public class InventoryMapper {
 
@@ -21,6 +23,15 @@ public class InventoryMapper {
 
         Inventory inventory = new Inventory();
         inventory.setInventoryId(dto.getInventoryId());
+
+        Film film = new Film();
+        film.setFilmId(dto.getFilmId());
+        inventory.setFilm(film);
+
+        Store store = new Store();
+        store.setStoreId(dto.getStoreId());
+        inventory.setStore(store);
+
         inventory.setLastUpdate(dto.getLastUpdate());
         return inventory;
     }
