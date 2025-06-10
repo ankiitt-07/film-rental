@@ -1,7 +1,9 @@
+// Film.java
 package com.filmrental.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -58,6 +60,7 @@ public class Film {
     private LocalDateTime lastUpdate;
 
     @ManyToMany(mappedBy = "films")
+    @JsonManagedReference // Add to prevent serialization issues
     private Set<Actor> actors = new HashSet<>();
 
     @OneToMany(mappedBy = "film")

@@ -1,22 +1,29 @@
 package com.filmrental.controller;
 
 import com.filmrental.exception.ResourceNotFoundException;
+import com.filmrental.mapper.ActorMapper;
 import com.filmrental.mapper.FilmMapper;
+import com.filmrental.model.dto.ActorDTO;
 import com.filmrental.model.dto.FilmDTO;
+import com.filmrental.model.entity.Actor;
 import com.filmrental.model.entity.Category;
 import com.filmrental.model.entity.Film;
 import com.filmrental.model.entity.FilmCategory;
+import com.filmrental.model.entity.Language;
+import com.filmrental.repository.ActorRepository;
 import com.filmrental.repository.CategoryRepository;
 import com.filmrental.repository.FilmCategoryRepository;
 import com.filmrental.repository.FilmRepository;
+import com.filmrental.repository.LanguageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,7 +42,16 @@ public class FilmController {
     private FilmCategoryRepository filmCategoryRepository;
 
     @Autowired
+    private ActorRepository actorRepository;
+
+    @Autowired
+    private LanguageRepository languageRepository;
+
+    @Autowired
     private FilmMapper filmMapper;
+
+    @Autowired
+    private ActorMapper actorMapper;
 
     @PostMapping("/post")
     public ResponseEntity<FilmDTO> addFilm(@RequestBody FilmDTO filmDTO) {
@@ -43,10 +59,65 @@ public class FilmController {
             if (filmDTO == null) {
                 throw new IllegalArgumentException("Film data cannot be null");
             }
-            Film film = filmMapper.toEntity(filmDTO);
+            if (filmDTO.getTitle() == null || filmDTO.getTitle().trim().isEmpty()) {
+                throw new IllegalArgumentException("Film title cannot be empty");
+            }
+            if (filmDTO.getLanguageId() == null) {
+                throw new IllegalArgumentException("Language ID is required");
+            }
+
+            // Create and save Film entity
+            Film film = new Film();
+            film.setTitle(filmDTO.getTitle());
+            film.setDescription(filmDTO.getDescription());
+            film.setReleaseYear(filmDTO.getReleaseYear());
+            film.setRentalDuration(filmDTO.getRentalDuration());
+            film.setRentalRate(filmDTO.getRentalRate());
+            film.setLength(filmDTO.getLength());
+            film.setReplacementCost(filmDTO.getReplacementCost());
+            film.setRating(filmDTO.getRating());
+            film.setSpecialFeatures(filmDTO.getSpecialFeatures());
+            film.setLastUpdate(LocalDateTime.now());
+
+            // Set language
+            Language language = languageRepository.findById(filmDTO.getLanguageId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Language not found for ID: " + filmDTO.getLanguageId()));
+            film.setLanguage(language);
+
+            // Set original language if provided
+            if (filmDTO.getOriginalLanguageId() != null) {
+                Language originalLanguage = languageRepository.findById(filmDTO.getOriginalLanguageId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Original language not found for ID: " + filmDTO.getOriginalLanguageId()));
+                film.setOriginalLanguage(originalLanguage);
+            }
+
             Film savedFilm = filmRepository.save(film);
+
+            // Handle actors
+            if (filmDTO.getActors() != null && !filmDTO.getActors().isEmpty()) {
+                Set<Actor> associatedActors = new HashSet<>();
+                for (ActorDTO actorDTO : filmDTO.getActors()) {
+                    if (actorDTO.getFirstName() == null || actorDTO.getLastName() == null) {
+                        throw new IllegalArgumentException("Actor first name and last name are required");
+                    }
+                    Actor actor = actorRepository.findByFirstNameAndLastName(actorDTO.getFirstName(), actorDTO.getLastName())
+                            .orElseGet(() -> {
+                                Actor newActor = new Actor();
+                                newActor.setFirstName(actorDTO.getFirstName());
+                                newActor.setLastName(actorDTO.getLastName());
+                                newActor.setLastUpdate(LocalDateTime.now());
+                                return actorRepository.save(newActor);
+                            });
+                    actor.getFilms().add(savedFilm);
+                    actorRepository.save(actor);
+                    associatedActors.add(actor);
+                }
+                savedFilm.setActors(associatedActors);
+            }
+
+            // Return DTO
             return ResponseEntity.ok(filmMapper.toDto(savedFilm));
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to add film: " + e.getMessage());
@@ -320,27 +391,73 @@ public class FilmController {
     }
 
     @GetMapping("/{id}/actors")
-    public ResponseEntity<?> getActorsByFilm(@PathVariable Integer id) {
+    public ResponseEntity<List<ActorDTO>> getActorsByFilm(@PathVariable Integer id) {
         try {
-            throw new UnsupportedOperationException("Actor retrieval not implemented");
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
+            List<ActorDTO> actorDTOs = film.getActors().stream()
+                    .map(actorMapper::toActorDto)
+                    .collect(Collectors.toList());
+            if (actorDTOs.isEmpty()) {
+                throw new ResourceNotFoundException("No actors found for film with ID: " + id);
+            }
+            return ResponseEntity.ok(actorDTOs);
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve actors for film: " + e.getMessage());
         }
     }
 
     @GetMapping("/category/{category}")
-    public ResponseEntity<?> getFilmsByCategory(@PathVariable String category) {
+    public ResponseEntity<List<FilmDTO>> getFilmsByCategory(@PathVariable String category) {
         try {
-            throw new UnsupportedOperationException("Category retrieval not implemented");
+            if (category == null || category.trim().isEmpty()) {
+                throw new IllegalArgumentException("Category name cannot be empty");
+            }
+            List<Film> films = filmRepository.findByFilmCategoriesCategoryName(category);
+            if (films.isEmpty()) {
+                throw new ResourceNotFoundException("No films found for category: " + category);
+            }
+            List<FilmDTO> filmDTOs = films.stream()
+                    .map(filmMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(filmDTOs);
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve films by category: " + e.getMessage());
         }
     }
 
     @PutMapping("/{id}/actor")
-    public ResponseEntity<?> assignActorToFilm(@PathVariable Integer id, @RequestBody Object actor) {
+    public ResponseEntity<FilmDTO> assignActorToFilm(@PathVariable Integer id, @RequestBody ActorDTO actorDTO) {
         try {
-            throw new UnsupportedOperationException("Actor assignment not implemented");
+            if (id == null || id <= 0) {
+                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
+            }
+            if (actorDTO.getFirstName() == null || actorDTO.getLastName() == null) {
+                throw new IllegalArgumentException("Actor first name and last name are required");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
+            Actor actor = actorRepository.findByFirstNameAndLastName(actorDTO.getFirstName(), actorDTO.getLastName())
+                    .orElseGet(() -> {
+                        Actor newActor = new Actor();
+                        newActor.setFirstName(actorDTO.getFirstName());
+                        newActor.setLastName(actorDTO.getLastName());
+                        newActor.setLastUpdate(LocalDateTime.now());
+                        return actorRepository.save(newActor);
+                    });
+            actor.getFilms().add(film);
+            actorRepository.save(actor);
+            film.getActors().add(actor);
+            return ResponseEntity.ok(filmMapper.toDto(film));
+        } catch (IllegalArgumentException | ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to assign actor to film: " + e.getMessage());
         }
@@ -355,6 +472,7 @@ public class FilmController {
             Film film = filmRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setTitle(title);
+            film.setLastUpdate(LocalDateTime.now());
             Film updatedFilm = filmRepository.save(film);
             return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -373,6 +491,7 @@ public class FilmController {
             Film film = filmRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setReleaseYear(releaseYear);
+            film.setLastUpdate(LocalDateTime.now());
             Film updatedFilm = filmRepository.save(film);
             return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
@@ -391,6 +510,7 @@ public class FilmController {
             Film film = filmRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
             film.setRentalDuration(rentalDuration);
+            film.setLastUpdate(LocalDateTime.now());
             Film updatedFilm = filmRepository.save(film);
             return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
         } catch (IllegalArgumentException | ResourceNotFoundException e) {
