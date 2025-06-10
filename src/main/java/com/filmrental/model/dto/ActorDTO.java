@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ActorDTO {
+    private Integer actorId;
     private String firstName;
     private String lastName;
     private LocalDateTime lastUpdate;

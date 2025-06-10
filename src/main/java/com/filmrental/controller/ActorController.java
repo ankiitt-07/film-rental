@@ -1,6 +1,7 @@
 package com.filmrental.controller;
 
 import com.filmrental.mapper.ActorMapper;
+import com.filmrental.mapper.FilmMapper;
 import com.filmrental.model.dto.ActorDTO;
 import com.filmrental.model.dto.FilmDTO;
 import com.filmrental.model.entity.Actor;
@@ -21,26 +22,29 @@ public class ActorController {
 
     @Autowired
     private ActorRepository actorRepository;
+
     @Autowired
-    private final ActorMapper mapper;
+    private ActorMapper actorMapper;
+
     @Autowired
     private FilmRepository filmRepository;
 
-    public ActorController(ActorMapper mapper) {
-        this.mapper = mapper;
+    @Autowired
+    private FilmMapper filmMapper;
+
+    public ActorController(ActorMapper actorMapper, FilmMapper filmMapper) {
+        this.actorMapper = actorMapper;
+        this.filmMapper = filmMapper;
     }
 
     @PostMapping("/post")
-    public ResponseEntity<String> addnewactor(@RequestBody ActorDTO actorDTO) {
+    public ResponseEntity<String> addNewActor(@RequestBody ActorDTO actorDTO) {
         try {
-            boolean exists = actorRepository.findByFirstNameAndLastName(
-                    actorDTO.getFirstName(), actorDTO.getLastName());
-
-            if (exists) {
+            if (actorRepository.existsByFirstNameAndLastName(actorDTO.getFirstName(), actorDTO.getLastName())) {
                 return ResponseEntity.status(409).body("Actor already exists");
             }
 
-            Actor actor = mapper.toActorEntity(actorDTO);
+            Actor actor = actorMapper.toActorEntity(actorDTO);
             actorRepository.save(actor);
             return ResponseEntity.ok("New actor added");
         } catch (Exception e) {
@@ -53,7 +57,7 @@ public class ActorController {
         try {
             List<ActorDTO> listByLastName = actorRepository.findByLastName(ln)
                     .stream()
-                    .map(mapper::toActorDto)
+                    .map(actorMapper::toActorDto)
                     .toList();
 
             return ResponseEntity.ok(listByLastName);
@@ -66,7 +70,9 @@ public class ActorController {
     public ResponseEntity<List<ActorDTO>> searchByFirstName(@PathVariable String fn) {
         try {
             List<ActorDTO> listByFirstName = actorRepository.findByFirstName(fn)
-                    .stream().map(mapper::toActorDto).toList();
+                    .stream()
+                    .map(actorMapper::toActorDto)
+                    .toList();
 
             return ResponseEntity.ok(listByFirstName);
         } catch (Exception e) {
@@ -75,65 +81,78 @@ public class ActorController {
     }
 
     @PutMapping("/update/lastname/{id}")
-    public ResponseEntity<ActorDTO> updateByLastName(@PathVariable Long id, @RequestBody ActorDTO actorDTO) {
+    public ResponseEntity<ActorDTO> updateByLastName(@PathVariable Integer id, @RequestBody ActorDTO actorDTO) {
         Actor actor = actorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
         actor.setLastName(actorDTO.getLastName());
         actor.setLastUpdate(LocalDateTime.now());
         actorRepository.save(actor);
-        return ResponseEntity.ok(mapper.toActorDto(actor));
+        return ResponseEntity.ok(actorMapper.toActorDto(actor));
     }
 
     @PutMapping("/update/firstname/{id}")
-    public ResponseEntity<ActorDTO> updateByFirstName(@PathVariable Long id, @RequestBody ActorDTO actorDTO) {
+    public ResponseEntity<ActorDTO> updateByFirstName(@PathVariable Integer id, @RequestBody ActorDTO actorDTO) {
         Actor actor = actorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
         actor.setFirstName(actorDTO.getFirstName());
         actor.setLastUpdate(LocalDateTime.now());
         actorRepository.save(actor);
-        return ResponseEntity.ok(mapper.toActorDto(actor));
+        return ResponseEntity.ok(actorMapper.toActorDto(actor));
     }
 
     @PutMapping("/{id}/film")
-    public ResponseEntity<FilmDTO> assignFilmToActor(@PathVariable Long id, @RequestBody FilmDTO filmDTO) {
-        Actor actor = actorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
-        Film film = filmRepository.findById(filmDTO.filmId())
-                .orElseThrow(() -> new EntityNotFoundException("Film not found by Id " + filmDTO.filmId()));
+    public ResponseEntity<FilmDTO> assignFilmToActor(@PathVariable Integer id, @RequestBody FilmDTO filmDTO) {
+        try {
+            Actor actor = actorRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
+            Film film = filmRepository.findById(filmDTO.getFilmId())
+                    .orElseThrow(() -> new EntityNotFoundException("Film not found with Id " + filmDTO.getFilmId()));
 
-        actor.getFilms().add(film);
-        actor.setLastUpdate(LocalDateTime.now());
-        actorRepository.save(actor);
+            actor.getFilms().add(film);
+            actor.setLastUpdate(LocalDateTime.now());
+            actorRepository.save(actor);
 
-        return ResponseEntity.ok(filmDTO);
+            return ResponseEntity.ok(filmDTO);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to assign film to actor", e);
+        }
     }
 
     @GetMapping("/{id}/films")
-    public ResponseEntity<List<FilmDTO>> filmsByActorId(@PathVariable Long id) {
-        Actor actor = actorRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
+    public ResponseEntity<List<FilmDTO>> filmsByActorId(@PathVariable Integer id) {
+        try {
+            Actor actor = actorRepository.findById(id)
+                    .orElseThrow(() -> new EntityNotFoundException("Actor not found with Id " + id));
 
-        List<FilmDTO> filmdto = actor.getFilms()
-                .stream().map(mapper::toFilmDTO)
-                .toList();
+            List<FilmDTO> filmDTOs = actor.getFilms()
+                    .stream()
+                    .map(filmMapper::toDto)
+                    .toList();
 
-        return ResponseEntity.ok(filmdto);
+            return ResponseEntity.ok(filmDTOs);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve films for actor", e);
+        }
     }
 
     @GetMapping("/toptenbyfilmcount")
     public ResponseEntity<List<Object[]>> topTenActorsByFilmCount() {
-        List<Actor> allActors = actorRepository.findAll();
+        try {
+            List<Actor> allActors = actorRepository.findAll();
 
-        List<Object[]> topActors = allActors.stream()
-                .map(actor -> new Object[]{
-                        actor.getFirstName(),
-                        actor.getLastName(),
-                        actor.getFilms().size()
-                })
-                .sorted((a1, a2) -> Integer.compare((int) a2[2], (int) a1[2])) // descending by film count
-                .limit(10)
-                .toList();
+            List<Object[]> topActors = allActors.stream()
+                    .map(actor -> new Object[]{
+                            actor.getFirstName(),
+                            actor.getLastName(),
+                            actor.getFilms().size()
+                    })
+                    .sorted((a1, a2) -> Integer.compare((Integer) a2[2], (Integer) a1[2])) // descending by film count
+                    .limit(10)
+                    .toList();
 
-        return ResponseEntity.ok(topActors);
+            return ResponseEntity.ok(topActors);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve top ten actors by film count", e);
+        }
     }
 }
