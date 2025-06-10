@@ -5,7 +5,7 @@ import com.filmrental.mapper.InventoryMapper;
 import com.filmrental.model.dto.InventoryDTO;
 import com.filmrental.model.entity.Inventory;
 import com.filmrental.repository.InventoryRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,8 +17,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/inventory")
 public class InventoryController {
 
-    @Autowired
-    private InventoryRepository inventoryRepository;
+    private final InventoryRepository inventoryRepository;
+
+    public InventoryController(InventoryRepository inventoryRepository) {
+        this.inventoryRepository = inventoryRepository;
+    }
 
     @PostMapping("/add")
     public ResponseEntity<InventoryDTO> addFilmToStore(@RequestBody InventoryDTO inventoryDTO) {
