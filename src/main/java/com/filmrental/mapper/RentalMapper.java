@@ -7,28 +7,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class RentalMapper {
 
-    public static RentalDTO toDto(Rental rental) {
-        if (rental == null) return null;
-
-        return new RentalDTO(
-                rental.getRentalId(),
-                rental.getRentalDate(),
-                rental.getReturnDate(),
-                rental.getLastUpdate(),
-                rental.getInventory() != null ? rental.getInventory().getInventoryId() : null,
-                rental.getCustomer() != null ? rental.getCustomer().getCustomerId() : null,
-                rental.getStaff() != null ? rental.getStaff().getStaffId() : null
-        );
+    public RentalDTO toDto(Rental rental) {
+        if (rental == null) {
+            return null;
+        }
+        RentalDTO dto = new RentalDTO();
+        dto.setRentalId(rental.getRentalId());
+        dto.setRentalDate(rental.getRentalDate());
+        dto.setInventoryId(rental.getInventory() != null ? rental.getInventory().getInventoryId() : null);
+        dto.setCustomerId(rental.getCustomer() != null ? rental.getCustomer().getCustomerId() : null);
+        dto.setReturnDate(rental.getReturnDate());
+        dto.setStaffId(rental.getStaff() != null ? rental.getStaff().getStaffId() : null);
+        return dto;
     }
 
-    public static Rental toEntity(RentalDTO dto) {
-        if (dto == null) return null;
-
+    public Rental toEntity(RentalDTO dto) {
+        if (dto == null) {
+            return null;
+        }
         Rental rental = new Rental();
-        rental.setRentalId(dto.rentalId());
-        rental.setRentalDate(dto.rentalDate());
-        rental.setReturnDate(dto.returnDate());
-        rental.setLastUpdate(dto.lastUpdate());
+        rental.setRentalId(dto.getRentalId());
+        rental.setRentalDate(dto.getRentalDate());
+        rental.setReturnDate(dto.getReturnDate());
         return rental;
     }
 }

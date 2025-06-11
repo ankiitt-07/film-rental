@@ -10,7 +10,6 @@ import java.util.List;
 @Table(name = "staff")
 @Data
 public class Staff {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "staff_id")
@@ -29,7 +28,7 @@ public class Staff {
     private String picture;
 
     @Column(name = "last_update", nullable = false)
-    private LocalDateTime lastUpdate = LocalDateTime.now();
+    private LocalDateTime lastUpdate;
 
     @Column(name = "username", nullable = false)
     private String username;
@@ -37,17 +36,23 @@ public class Staff {
     @Column(name = "password")
     private String password;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "address_id")
     private Address address;
 
-    @OneToMany(mappedBy = "staff")
+    @OneToMany(mappedBy = "staff", fetch = FetchType.LAZY)
     private List<Rental> rentals;
 
-    @OneToMany(mappedBy = "staff")
+    @OneToMany(mappedBy = "staff", fetch = FetchType.LAZY)
     private List<Payment> payments;
+
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }

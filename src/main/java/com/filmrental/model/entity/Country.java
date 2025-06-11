@@ -14,7 +14,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Country {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "country_id")
@@ -26,6 +25,12 @@ public class Country {
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
 
-    @OneToMany(mappedBy = "country", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "country", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<City> cities;
+
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }

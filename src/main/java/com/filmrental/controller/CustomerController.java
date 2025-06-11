@@ -1,5 +1,7 @@
 package com.filmrental.controller;
 
+import com.filmrental.mapper.AddressMapper;
+import com.filmrental.mapper.CustomerMapper;
 import com.filmrental.model.dto.CustomerDTO;
 import com.filmrental.model.entity.Address;
 import com.filmrental.model.entity.Customer;
@@ -7,12 +9,15 @@ import com.filmrental.model.entity.Store;
 import com.filmrental.repository.AddressRepository;
 import com.filmrental.repository.CustomerRepository;
 import com.filmrental.repository.StoreRepository;
-import com.filmrental.mapper.CustomerMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,138 +38,134 @@ public class CustomerController {
     @Autowired
     private CustomerMapper customerMapper;
 
+    @Autowired
+    private AddressMapper addressMapper;
+
+    @GetMapping("/all")
+    public ResponseEntity<Page<CustomerDTO>> getAllCustomers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Customer> customers = customerRepository.findAll(pageable);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.map(customerMapper::toDto));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     @PostMapping("/post")
     public ResponseEntity<String> addCustomer(@RequestBody CustomerDTO customerDTO) {
         try {
-            if (customerDTO == null || customerDTO.getFirstName() == null || customerDTO.getLastName() == null || customerDTO.getEmail() == null) {
-                throw new IllegalArgumentException("Invalid customer data: firstName, lastName, and email are required");
+            if (customerDTO.getFirstName() == null || customerDTO.getLastName() == null || customerDTO.getEmail() == null) {
+                throw new IllegalArgumentException("First name, last name, and email are required");
             }
-            if (customerDTO.getStoreId() == null || customerDTO.getAddressId() == null) {
-                throw new IllegalArgumentException("Invalid customer data: storeId and addressId are required");
+            if (customerRepository.findByEmail(customerDTO.getEmail()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
             }
-            Store store = storeRepository.findById(customerDTO.getStoreId())
-                    .orElseThrow(() -> new IllegalArgumentException("Store not found for ID: " + customerDTO.getStoreId()));
-            Address address = addressRepository.findById(customerDTO.getAddressId())
-                    .orElseThrow(() -> new IllegalArgumentException("Address not found for ID: " + customerDTO.getAddressId()));
             Customer customer = customerMapper.toEntity(customerDTO);
-            customer.setStore(store);
-            customer.setAddress(address);
-            customer.setCreateDate(customerDTO.getCreateDate() != null ? customerDTO.getCreateDate() : java.time.LocalDate.now());
+            customer.setCreateDate(LocalDate.now());
             customer.setLastUpdate(LocalDateTime.now());
-            customer.setActive(customerDTO.getActive() != null ? customerDTO.getActive() : true);
             customerRepository.save(customer);
             return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error creating customer: " + e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating customer");
         }
     }
 
     @GetMapping("/lastname/{ln}")
-    public ResponseEntity<List<CustomerDTO>> getCustomersByLastName(@PathVariable("ln") String lastName) {
+    public ResponseEntity<List<CustomerDTO>> getCustomersByLastName(@PathVariable String ln) {
         try {
-            if (lastName == null || lastName.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid last name: last name cannot be empty");
+            if (ln == null || ln.trim().isEmpty()) {
+                throw new IllegalArgumentException("Last name cannot be empty");
             }
-            List<Customer> customers = customerRepository.findByLastNameContainingIgnoreCase(lastName);
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
+            List<Customer> customers = customerRepository.findByLastNameContainingIgnoreCase(ln);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.stream().map(customerMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching customers by last name: " + lastName, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/firstname/{fn}")
-    public ResponseEntity<List<CustomerDTO>> getCustomersByFirstName(@PathVariable("fn") String firstName) {
+    public ResponseEntity<List<CustomerDTO>> getCustomersByFirstName(@PathVariable String fn) {
         try {
-            if (firstName == null || firstName.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid first name: first name cannot be empty");
+            if (fn == null || fn.trim().isEmpty()) {
+                throw new IllegalArgumentException("First name cannot be empty");
             }
-            List<Customer> customers = customerRepository.findByFirstNameContainingIgnoreCase(firstName);
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
+            List<Customer> customers = customerRepository.findByFirstNameContainingIgnoreCase(fn);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.stream().map(customerMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching customers by first name: " + firstName, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<CustomerDTO> getCustomerByEmail(@PathVariable("email") String email) {
+    public ResponseEntity<CustomerDTO> getCustomerByEmail(@PathVariable String email) {
         try {
             if (email == null || email.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid email: email cannot be empty");
+                throw new IllegalArgumentException("Email cannot be empty");
             }
-            Customer customer = customerRepository.findByEmail(email)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for email: " + email));
+            Customer customer = customerRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("Customer not found with email: " + email));
             return ResponseEntity.ok(customerMapper.toDto(customer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching customer by email: " + email, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @PutMapping("/{id}/{addressId}")
-    public ResponseEntity<CustomerDTO> assignAddressToCustomer(@PathVariable("id") Integer customerId, @PathVariable("addressId") Integer addressId) {
+    public ResponseEntity<CustomerDTO> assignAddressToCustomer(@PathVariable Integer id, @PathVariable Integer addressId) {
         try {
-            if (customerId <= 0 || addressId <= 0) {
-                throw new IllegalArgumentException("Invalid IDs: customerId and addressId must be positive integers");
+            if (id <= 0 || addressId <= 0) {
+                throw new IllegalArgumentException("Invalid customer or address ID");
             }
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + customerId));
-            Address address = addressRepository.findById(addressId)
-                    .orElseThrow(() -> new IllegalArgumentException("Address not found for ID: " + addressId));
+            Customer customer = customerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
+            Address address = addressRepository.findById(addressId).orElseThrow(() -> new IllegalArgumentException("Address not found with ID: " + addressId));
             customer.setAddress(address);
             customer.setLastUpdate(LocalDateTime.now());
             Customer updatedCustomer = customerRepository.save(customer);
             return ResponseEntity.ok(customerMapper.toDto(updatedCustomer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error assigning address to customer ID: " + customerId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/city/{city}")
-    public ResponseEntity<List<CustomerDTO>> getCustomersByCity(@PathVariable("city") String city) {
+    public ResponseEntity<List<CustomerDTO>> getCustomersByCity(@PathVariable String city) {
         try {
             if (city == null || city.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid city: city name cannot be empty");
+                throw new IllegalArgumentException("City name cannot be empty");
             }
             List<Customer> customers = customerRepository.findByAddress_City_City(city);
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.stream().map(customerMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching customers by city: " + city, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/country/{country}")
-    public ResponseEntity<List<CustomerDTO>> getCustomersByCountry(@PathVariable("country") String country) {
+    public ResponseEntity<List<CustomerDTO>> getCustomersByCountry(@PathVariable String country) {
         try {
             if (country == null || country.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid country: country name cannot be empty");
+                throw new IllegalArgumentException("Country name cannot be empty");
             }
             List<Customer> customers = customerRepository.findByAddress_City_Country_Country(country);
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.stream().map(customerMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching customers by country: " + country, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
@@ -172,15 +173,9 @@ public class CustomerController {
     public ResponseEntity<List<CustomerDTO>> getActiveCustomers() {
         try {
             List<Customer> customers = customerRepository.findByActiveTrue();
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.stream().map(customerMapper::toDto).collect(Collectors.toList()));
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching active customers", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
@@ -188,125 +183,110 @@ public class CustomerController {
     public ResponseEntity<List<CustomerDTO>> getInactiveCustomers() {
         try {
             List<Customer> customers = customerRepository.findByActiveFalse();
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
+            return customers.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customers.stream().map(customerMapper::toDto).collect(Collectors.toList()));
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching inactive customers", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/phone/{phone}")
-    public ResponseEntity<CustomerDTO> getCustomerByPhone(@PathVariable("phone") String phone) {
+    public ResponseEntity<CustomerDTO> getCustomerByPhone(@PathVariable String phone) {
         try {
             if (phone == null || phone.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid phone: phone number cannot be empty");
+                throw new IllegalArgumentException("Phone number cannot be empty");
             }
-            Customer customer = customerRepository.findByAddress_Phone(phone)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for phone: " + phone));
+            Customer customer = customerRepository.findByAddress_Phone(phone).orElseThrow(() -> new IllegalArgumentException("Customer not found with phone: " + phone));
             return ResponseEntity.ok(customerMapper.toDto(customer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching customer by phone: " + phone, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @PutMapping("/update/{id}/{fn}")
-    public ResponseEntity<CustomerDTO> updateCustomerFirstName(@PathVariable("id") Integer customerId, @PathVariable("fn") String firstName) {
+    @PutMapping("/update/{id}/firstname")
+    public ResponseEntity<CustomerDTO> updateFirstName(@PathVariable Integer id, @RequestBody String firstName) {
         try {
-            if (customerId <= 0) {
-                throw new IllegalArgumentException("Invalid customerId: must be a positive integer");
+            if (id <= 0 || firstName == null || firstName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ID or first name");
             }
-            if (firstName == null || firstName.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid first name: first name cannot be empty");
-            }
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + customerId));
+            Customer customer = customerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
             customer.setFirstName(firstName);
             customer.setLastUpdate(LocalDateTime.now());
             Customer updatedCustomer = customerRepository.save(customer);
             return ResponseEntity.ok(customerMapper.toDto(updatedCustomer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error updating first name for customer ID: " + customerId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @PutMapping("/update/{id}/ln")
-    public ResponseEntity<CustomerDTO> updateCustomerLastName(@PathVariable("id") Integer customerId, @RequestBody String lastName) {
+    @PutMapping("/update/{id}/lastname")
+    public ResponseEntity<CustomerDTO> updateLastName(@PathVariable Integer id, @RequestBody String lastName) {
         try {
-            if (customerId <= 0) {
-                throw new IllegalArgumentException("Invalid customerId: must be a positive integer");
+            if (id <= 0 || lastName == null || lastName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ID or last name");
             }
-            if (lastName == null || lastName.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid last name: last name cannot be empty");
-            }
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + customerId));
+            Customer customer = customerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
             customer.setLastName(lastName);
             customer.setLastUpdate(LocalDateTime.now());
             Customer updatedCustomer = customerRepository.save(customer);
             return ResponseEntity.ok(customerMapper.toDto(updatedCustomer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error updating last name for customer ID: " + customerId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @PutMapping("/update/{id}/email")
-    public ResponseEntity<CustomerDTO> updateCustomerEmail(@PathVariable("id") Integer customerId, @RequestBody String email) {
+    public ResponseEntity<CustomerDTO> updateEmail(@PathVariable Integer id, @RequestBody String email) {
         try {
-            if (customerId <= 0) {
-                throw new IllegalArgumentException("Invalid customerId: must be a positive integer");
+            if (id <= 0 || email == null || email.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ID or email");
             }
-            if (email == null || email.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid email: email cannot be empty");
-            }
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + customerId));
+            Customer customer = customerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
             customer.setEmail(email);
             customer.setLastUpdate(LocalDateTime.now());
             Customer updatedCustomer = customerRepository.save(customer);
             return ResponseEntity.ok(customerMapper.toDto(updatedCustomer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error updating email for customer ID: " + customerId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @PutMapping("/update/{id}/store")
-    public ResponseEntity<CustomerDTO> assignStoreToCustomer(@PathVariable("id") Integer customerId, @RequestBody Integer storeId) {
+    public ResponseEntity<CustomerDTO> assignStore(@PathVariable Integer id, @RequestBody Integer storeId) {
         try {
-            if (customerId <= 0 || storeId <= 0) {
-                throw new IllegalArgumentException("Invalid IDs: customerId and storeId must be positive integers");
+            if (id <= 0 || storeId <= 0) {
+                throw new IllegalArgumentException("Invalid customer or store ID");
             }
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + customerId));
-            Store store = storeRepository.findById(storeId)
-                    .orElseThrow(() -> new IllegalArgumentException("Store not found for ID: " + storeId));
+            Customer customer = customerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
+            Store store = storeRepository.findById(storeId).orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + storeId));
             customer.setStore(store);
             customer.setLastUpdate(LocalDateTime.now());
             Customer updatedCustomer = customerRepository.save(customer);
             return ResponseEntity.ok(customerMapper.toDto(updatedCustomer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error assigning store to customer ID: " + customerId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @PutMapping("/update/{id}/phone")
-    public ResponseEntity<CustomerDTO> updateCustomerPhone(@PathVariable("id") Integer customerId, @RequestBody String phone) {
+    public ResponseEntity<CustomerDTO> updatePhone(@PathVariable Integer id, @RequestBody String phone) {
         try {
-            if (customerId <= 0) {
-                throw new IllegalArgumentException("Invalid customerId: must be a positive integer");
+            if (id <= 0 || phone == null || phone.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ID or phone number");
             }
-            if (phone == null || phone.trim().isEmpty()) {
-                throw new IllegalArgumentException("Invalid phone: phone number cannot be empty");
-            }
-            Customer customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new IllegalArgumentException("Customer not found for ID: " + customerId));
+            Customer customer = customerRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
             Address address = customer.getAddress();
             if (address == null) {
-                throw new IllegalArgumentException("Customer ID: " + customerId + " has no associated address");
+                throw new IllegalArgumentException("Customer has no address");
             }
             address.setPhone(phone);
             address.setLastUpdate(LocalDateTime.now());
@@ -314,27 +294,10 @@ public class CustomerController {
             customer.setLastUpdate(LocalDateTime.now());
             Customer updatedCustomer = customerRepository.save(customer);
             return ResponseEntity.ok(customerMapper.toDto(updatedCustomer));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error updating phone for customer ID: " + customerId, e);
-        }
-    }
-
-    @GetMapping("/store/{storeId}/active")
-    public ResponseEntity<List<CustomerDTO>> getActiveCustomersByStore(@PathVariable("storeId") Integer storeId) {
-        try {
-            if (storeId <= 0) {
-                throw new IllegalArgumentException("Invalid storeId: must be a positive integer");
-            }
-            List<Customer> customers = customerRepository.findByStore_StoreIdAndActive(storeId, true);
-            if (customers.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(customerDTOs);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching active customers for store ID: " + storeId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

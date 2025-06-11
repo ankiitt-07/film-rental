@@ -10,8 +10,8 @@ public class StaffDTO {
     private String email;
     private Boolean active;
     private String picture;
-    private Integer storeId;
     private String username;
     private String password;
+    private Integer storeId;
     private Integer addressId;
 }

@@ -21,7 +21,7 @@ public class Category {
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
 
-    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FilmCategory> filmCategories;
 
     @PrePersist

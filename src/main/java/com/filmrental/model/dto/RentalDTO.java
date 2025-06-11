@@ -1,13 +1,14 @@
 package com.filmrental.model.dto;
 
+import lombok.Data;
 import java.time.LocalDateTime;
 
-public record RentalDTO(
-        Integer rentalId,
-        LocalDateTime rentalDate,
-        LocalDateTime returnDate,
-        LocalDateTime lastUpdate,
-        Integer inventoryId,
-        Integer customerId,
-        Integer staffId
-) {}
+@Data
+public class RentalDTO {
+    private Integer rentalId;
+    private LocalDateTime rentalDate;
+    private Integer inventoryId;
+    private Integer customerId;
+    private LocalDateTime returnDate;
+    private Integer staffId;
+}

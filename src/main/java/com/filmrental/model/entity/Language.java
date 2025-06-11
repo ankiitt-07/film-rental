@@ -21,9 +21,15 @@ public class Language {
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
 
-    @OneToMany(mappedBy = "language")
+    @OneToMany(mappedBy = "language", fetch = FetchType.LAZY)
     private List<Film> films;
 
-    @OneToMany(mappedBy = "originalLanguage")
+    @OneToMany(mappedBy = "originalLanguage", fetch = FetchType.LAZY)
     private List<Film> originalLanguageFilms;
+
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }

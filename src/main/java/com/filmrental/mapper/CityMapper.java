@@ -8,21 +8,23 @@ import org.springframework.stereotype.Component;
 public class CityMapper {
 
     public CityDTO toDto(City city) {
-        if (city == null) return null;
-        return new CityDTO(
-                city.getCityId(),
-                city.getCity(),
-                city.getCountry() != null ? city.getCountry().getCountryId() : null,
-                city.getLastUpdate()
-        );
+        if (city == null) {
+            return null;
+        }
+        CityDTO dto = new CityDTO();
+        dto.setCityId(city.getCityId());
+        dto.setCity(city.getCity());
+        dto.setCountryId(city.getCountry() != null ? city.getCountry().getCountryId() : null);
+        return dto;
     }
 
     public City toEntity(CityDTO dto) {
-        if (dto == null) return null;
+        if (dto == null) {
+            return null;
+        }
         City city = new City();
         city.setCityId(dto.getCityId());
         city.setCity(dto.getCity());
-        city.setLastUpdate(dto.getLastUpdate());
         return city;
     }
 }
