@@ -2,45 +2,42 @@ package com.filmrental.mapper;
 
 import com.filmrental.model.dto.FilmDTO;
 import com.filmrental.model.entity.Film;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
 import java.util.stream.Collectors;
 
 @Component
 public class FilmMapper {
 
-    @Autowired
-    private ActorMapper actorMapper;
-
     public FilmDTO toDto(Film film) {
-        if (film == null) return null;
-
-        FilmDTO filmDTO = new FilmDTO();
-        filmDTO.setFilmId(film.getFilmId());
-        filmDTO.setTitle(film.getTitle());
-        filmDTO.setDescription(film.getDescription());
-        filmDTO.setReleaseYear(film.getReleaseYear());
-        filmDTO.setLanguageId(film.getLanguage() != null ? film.getLanguage().getLanguageId() : null);
-        filmDTO.setOriginalLanguageId(film.getOriginalLanguage() != null ? film.getOriginalLanguage().getLanguageId() : null);
-        filmDTO.setRentalDuration(film.getRentalDuration());
-        filmDTO.setRentalRate(film.getRentalRate());
-        filmDTO.setLength(film.getLength());
-        filmDTO.setReplacementCost(film.getReplacementCost());
-        filmDTO.setRating(film.getRating());
-        filmDTO.setSpecialFeatures(film.getSpecialFeatures());
-        filmDTO.setLastUpdate(film.getLastUpdate());
-        if (film.getActors() != null) {
-            filmDTO.setActors(film.getActors().stream()
-                    .map(actorMapper::toActorDto)
-                    .collect(Collectors.toList()));
+        if (film == null) {
+            return null;
         }
-        return filmDTO;
+        FilmDTO dto = new FilmDTO();
+        dto.setFilmId(film.getFilmId());
+        dto.setTitle(film.getTitle());
+        dto.setDescription(film.getDescription());
+        dto.setReleaseYear(film.getReleaseYear());
+        dto.setLanguageId(film.getLanguage() != null ? film.getLanguage().getLanguageId() : null);
+        dto.setOriginalLanguageId(film.getOriginalLanguage() != null ? film.getOriginalLanguage().getLanguageId() : null);
+        dto.setRentalDuration(film.getRentalDuration());
+        dto.setRentalRate(film.getRentalRate());
+        dto.setLength(film.getLength());
+        dto.setReplacementCost(film.getReplacementCost());
+        dto.setRating(film.getRating());
+        dto.setSpecialFeatures(film.getSpecialFeatures());
+        dto.setActorIds(film.getActors().stream()
+                .map(actor -> actor.getActorId())
+                .collect(Collectors.toList()));
+        dto.setCategoryIds(film.getFilmCategories().stream()
+                .map(fc -> fc.getCategory().getCategoryId())
+                .collect(Collectors.toList()));
+        return dto;
     }
 
     public Film toEntity(FilmDTO dto) {
-        if (dto == null) return null;
-
+        if (dto == null) {
+            return null;
+        }
         Film film = new Film();
         film.setFilmId(dto.getFilmId());
         film.setTitle(dto.getTitle());
@@ -52,7 +49,6 @@ public class FilmMapper {
         film.setReplacementCost(dto.getReplacementCost());
         film.setRating(dto.getRating());
         film.setSpecialFeatures(dto.getSpecialFeatures());
-        film.setLastUpdate(dto.getLastUpdate());
         return film;
     }
 }

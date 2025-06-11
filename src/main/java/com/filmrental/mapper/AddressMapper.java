@@ -8,21 +8,24 @@ import org.springframework.stereotype.Component;
 public class AddressMapper {
 
     public AddressDTO toDto(Address address) {
-        if (address == null) return null;
-        return new AddressDTO(
-                address.getAddressId(),
-                address.getAddress(),
-                address.getAddress2(),
-                address.getDistrict(),
-                address.getCity() != null ? address.getCity().getCityId().shortValue() : null,
-                address.getPostalCode(),
-                address.getPhone(),
-                address.getLastUpdate()
-        );
+        if (address == null) {
+            return null;
+        }
+        AddressDTO dto = new AddressDTO();
+        dto.setAddressId(address.getAddressId());
+        dto.setAddress(address.getAddress());
+        dto.setAddress2(address.getAddress2());
+        dto.setDistrict(address.getDistrict());
+        dto.setCityId(address.getCity() != null ? address.getCity().getCityId() : null);
+        dto.setPostalCode(address.getPostalCode());
+        dto.setPhone(address.getPhone());
+        return dto;
     }
 
     public Address toEntity(AddressDTO dto) {
-        if (dto == null) return null;
+        if (dto == null) {
+            return null;
+        }
         Address address = new Address();
         address.setAddressId(dto.getAddressId());
         address.setAddress(dto.getAddress());
@@ -30,7 +33,6 @@ public class AddressMapper {
         address.setDistrict(dto.getDistrict());
         address.setPostalCode(dto.getPostalCode());
         address.setPhone(dto.getPhone());
-        address.setLastUpdate(dto.getLastUpdate());
         return address;
     }
 }

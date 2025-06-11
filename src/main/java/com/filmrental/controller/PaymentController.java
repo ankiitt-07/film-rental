@@ -1,167 +1,167 @@
 package com.filmrental.controller;
 
-import com.filmrental.exception.ResourceNotFoundException;
+import com.filmrental.mapper.FilmMapper;
 import com.filmrental.mapper.PaymentMapper;
-import com.filmrental.model.dto.PaymentRequestDTO;
-import com.filmrental.model.entity.Payment;
+import com.filmrental.model.dto.PaymentDTO;
+import com.filmrental.model.entity.*;
+import com.filmrental.repository.CustomerRepository;
+import com.filmrental.repository.FilmRepository;
 import com.filmrental.repository.PaymentRepository;
+import com.filmrental.repository.RentalRepository;
+import com.filmrental.repository.StaffRepository;
+import com.filmrental.repository.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/payment")
+@RequestMapping("/api/payments")
 public class PaymentController {
 
     @Autowired
     private PaymentRepository paymentRepository;
 
-    @PutMapping("/add")
-    public ResponseEntity<PaymentRequestDTO> makePayment(@RequestBody PaymentRequestDTO paymentDTO) {
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
+    private RentalRepository rentalRepository;
+
+    @Autowired
+    private StaffRepository staffRepository;
+
+    @Autowired
+    private StoreRepository storeRepository;
+
+    @Autowired
+    private FilmRepository filmRepository;
+
+    @Autowired
+    private PaymentMapper paymentMapper;
+
+    @Autowired
+    private FilmMapper filmMapper;
+
+    @GetMapping("/all")
+    public ResponseEntity<Page<PaymentDTO>> getAllPayments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            if (paymentDTO.getCustomerId() == null || paymentDTO.getStaffId() == null || paymentDTO.getRentalId() == null) {
-                throw new IllegalArgumentException("Customer ID, Staff ID, and Rental ID must not be null");
-            }
-            if (paymentDTO.getAmount() == null || paymentDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("Amount must be greater than zero");
-            }
-            if (paymentDTO.getPaymentDate() == null) {
-                throw new IllegalArgumentException("Payment date must not be null");
-            }
-            Payment payment = PaymentMapper.toEntity(paymentDTO);
-            payment.setLastUpdate(LocalDateTime.now());
-            Payment savedPayment = paymentRepository.save(payment);
-            return ResponseEntity.ok(PaymentMapper.toDto(savedPayment));
-        } catch (IllegalArgumentException e) {
-            throw e;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Payment> payments = paymentRepository.findAll(pageable);
+            return payments.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(payments.map(paymentMapper::toDto));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to process payment: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    private List<Map<String, Object>> mapRevenueResults(List<Object[]> results, String keyName, boolean isDate) {
+    @PostMapping("/add")
+    public ResponseEntity<String> addPayment(@RequestBody PaymentDTO paymentDTO) {
         try {
-            return results.stream()
-                    .map(result -> {
-                        Map<String, Object> map = new HashMap<>();
-                        if (isDate) {
-                            map.put(keyName, ((LocalDateTime) result[0]).toLocalDate());
-                        } else {
-                            map.put(keyName, result[0]);
-                        }
-                        map.put("revenue", result[1]);
-                        return map;
-                    })
-                    .toList();
-        } catch (ClassCastException e) {
-            throw new RuntimeException("Invalid data format returned from database: " + e.getMessage());
+            if (paymentDTO.getCustomerId() == null || paymentDTO.getRentalId() == null || paymentDTO.getStaffId() == null || paymentDTO.getAmount() == null) {
+                throw new IllegalArgumentException("Customer ID, rental ID, staff ID, and amount are required");
+            }
+            Customer customer = customerRepository.findById(paymentDTO.getCustomerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + paymentDTO.getCustomerId()));
+            Rental rental = rentalRepository.findById(paymentDTO.getRentalId())
+                    .orElseThrow(() -> new IllegalArgumentException("Rental not found with ID: " + paymentDTO.getRentalId()));
+            Staff staff = staffRepository.findById(paymentDTO.getStaffId())
+                    .orElseThrow(() -> new IllegalArgumentException("Staff not found with ID: " + paymentDTO.getStaffId()));
+            Payment payment = paymentMapper.toEntity(paymentDTO);
+            payment.setCustomer(customer);
+            payment.setRental(rental);
+            payment.setStaff(staff);
+            payment.setPaymentDate(LocalDateTime.now());
+            payment.setLastUpdate(LocalDateTime.now());
+            paymentRepository.save(payment);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating payment");
         }
     }
 
     @GetMapping("/revenue/datewise")
-    public ResponseEntity<List<Map<String, Object>>> getRevenueByDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    public ResponseEntity<List<Object[]>> getRevenueByDateWise() {
         try {
-            if (startDate.isAfter(endDate)) {
-                throw new IllegalArgumentException("Start date must be before or equal to end date");
-            }
-            List<Object[]> results = paymentRepository.findRevenueByDate(
-                    startDate.atStartOfDay(),
-                    endDate.atTime(23, 59, 59)
-            );
-            return ResponseEntity.ok(mapRevenueResults(results, "date", true));
-        } catch (IllegalArgumentException e) {
-            throw e;
+            List<Object[]> results = paymentRepository.findRevenueByDateWise();
+            return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve revenue by date: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/revenue/datewise/store/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getRevenueByDateAndStore(
-            @PathVariable("id") Integer storeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    public ResponseEntity<List<Object[]>> getRevenueByDateWiseAndStore(@PathVariable Integer id) {
         try {
-            if (storeId == null || storeId <= 0) {
+            if (id <= 0) {
                 throw new IllegalArgumentException("Invalid store ID");
             }
-            if (startDate.isAfter(endDate)) {
-                throw new IllegalArgumentException("Start date must be before or equal to end date");
-            }
-            List<Object[]> results = paymentRepository.findRevenueByDateAndStore(
-                    storeId,
-                    startDate.atStartOfDay(),
-                    endDate.atTime(23, 59, 59)
-            );
-            if (results.isEmpty()) {
-                throw new ResourceNotFoundException("No revenue data found for store ID: " + storeId);
-            }
-            return ResponseEntity.ok(mapRevenueResults(results, "date", true));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            List<Object[]> results = paymentRepository.findRevenueByDateWiseAndStore(id);
+            return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve store revenue by date: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/revenue/filmwise")
-    public ResponseEntity<List<Map<String, Object>>> getRevenueByFilm() {
+    public ResponseEntity<List<Object[]>> getCumulativeRevenueByFilm() {
         try {
-            List<Object[]> results = paymentRepository.findRevenueByFilm();
-            if (results.isEmpty()) {
-                throw new ResourceNotFoundException("No revenue data found for films");
-            }
-            return ResponseEntity.ok(mapRevenueResults(results, "filmTitle", false));
-        } catch (ResourceNotFoundException e) {
-            throw e;
+            List<Object[]> results = paymentRepository.findCumulativeRevenueByFilm();
+            List<Object[]> transformedResults = results.stream()
+                    .map(row -> new Object[]{filmMapper.toDto((Film) row[0]), row[1]})
+                    .collect(Collectors.toList());
+            return transformedResults.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(transformedResults);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve film revenue: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/revenue/film/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getRevenueByFilmId(@PathVariable("id") Integer filmId) {
+    public ResponseEntity<List<Object[]>> getCumulativeRevenueByFilmAndStore(@PathVariable Integer id) {
         try {
-            if (filmId == null || filmId <= 0) {
+            if (id <= 0) {
                 throw new IllegalArgumentException("Invalid film ID");
             }
-            List<Object[]> results = paymentRepository.findRevenueByFilmId(filmId);
-            if (results.isEmpty()) {
-                throw new ResourceNotFoundException("No revenue data found for film ID: " + filmId);
-            }
-            return ResponseEntity.ok(mapRevenueResults(results, "filmTitle", false));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            List<Object[]> results = paymentRepository.findCumulativeRevenueByFilmAndStore(id);
+            return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve revenue for film ID " + filmId + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/revenue/films/store/{id}")
-    public ResponseEntity<List<Map<String, Object>>> getRevenueByFilmsAndStore(@PathVariable("id") Integer storeId) {
+    @GetMapping("/revenue/film/store/{id}")
+    public ResponseEntity<List<Object[]>> getCumulativeRevenueByStore(@PathVariable Integer id) {
         try {
-            if (storeId == null || storeId <= 0) {
+            if (id <= 0) {
                 throw new IllegalArgumentException("Invalid store ID");
             }
-            List<Object[]> results = paymentRepository.findRevenueByFilmsAndStore(storeId);
-            if (results.isEmpty()) {
-                throw new ResourceNotFoundException("No revenue data found for films in store ID: " + storeId);
-            }
-            return ResponseEntity.ok(mapRevenueResults(results, "filmTitle", false));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            storeRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + id));
+            List<Object[]> results = paymentRepository.findCumulativeRevenueByStore(id);
+            List<Object[]> transformedResults = results.stream()
+                    .map(row -> new Object[]{filmMapper.toDto((Film) row[0]), row[1]})
+                    .collect(Collectors.toList());
+            return transformedResults.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(transformedResults);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve film revenue for store ID " + storeId + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

@@ -1,15 +1,10 @@
 package com.filmrental.model.dto;
 
-import lombok.*;
-
-import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class InventoryDTO {
     private Integer inventoryId;
     private Integer filmId;
     private Integer storeId;
-    private LocalDateTime lastUpdate;
 }

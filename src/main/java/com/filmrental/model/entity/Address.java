@@ -23,7 +23,7 @@ public class Address {
     @Column(name = "district", nullable = false, length = 20)
     private String district;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "city_id", nullable = false)
     private City city;
 
@@ -34,5 +34,11 @@ public class Address {
     private String phone;
 
     @Column(name = "last_update", nullable = false)
-    private LocalDateTime lastUpdate = LocalDateTime.now();
+    private LocalDateTime lastUpdate;
+
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }

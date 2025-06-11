@@ -8,22 +8,25 @@ import org.springframework.stereotype.Component;
 public class CustomerMapper {
 
     public CustomerDTO toDto(Customer customer) {
-        if (customer == null) return null;
-        return new CustomerDTO(
-                customer.getCustomerId(),
-                customer.getStore() != null ? customer.getStore().getStoreId() : null,
-                customer.getFirstName(),
-                customer.getLastName(),
-                customer.getEmail(),
-                customer.getAddress() != null ? customer.getAddress().getAddressId() : null,
-                customer.getActive(),
-                customer.getCreateDate(),
-                customer.getLastUpdate()
-        );
+        if (customer == null) {
+            return null;
+        }
+        CustomerDTO dto = new CustomerDTO();
+        dto.setCustomerId(customer.getCustomerId());
+        dto.setStoreId(customer.getStore() != null ? customer.getStore().getStoreId() : null);
+        dto.setFirstName(customer.getFirstName());
+        dto.setLastName(customer.getLastName());
+        dto.setEmail(customer.getEmail());
+        dto.setAddressId(customer.getAddress() != null ? customer.getAddress().getAddressId() : null);
+        dto.setActive(customer.getActive());
+        dto.setCreateDate(customer.getCreateDate());
+        return dto;
     }
 
     public Customer toEntity(CustomerDTO dto) {
-        if (dto == null) return null;
+        if (dto == null) {
+            return null;
+        }
         Customer customer = new Customer();
         customer.setCustomerId(dto.getCustomerId());
         customer.setFirstName(dto.getFirstName());
@@ -31,7 +34,6 @@ public class CustomerMapper {
         customer.setEmail(dto.getEmail());
         customer.setActive(dto.getActive());
         customer.setCreateDate(dto.getCreateDate());
-        customer.setLastUpdate(dto.getLastUpdate());
         return customer;
     }
 }

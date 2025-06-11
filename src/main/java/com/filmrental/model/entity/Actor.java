@@ -17,7 +17,7 @@ public class Actor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "actor_id")
-    private Integer actorId; // Changed from Long to Integer
+    private Integer actorId;
 
     @Column(name = "first_name", nullable = false)
     private String firstName;
@@ -28,7 +28,7 @@ public class Actor {
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "film_actor",
             joinColumns = @JoinColumn(name = "actor_id"),
@@ -36,4 +36,10 @@ public class Actor {
     )
     @JsonBackReference
     private Set<Film> films = new HashSet<>();
+
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }

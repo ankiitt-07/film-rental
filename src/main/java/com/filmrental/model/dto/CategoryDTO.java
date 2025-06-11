@@ -1,9 +1,9 @@
 package com.filmrental.model.dto;
 
-import java.time.LocalDateTime;
+import lombok.Data;
 
-public record CategoryDTO(
-        Integer category_id,
-        String name,
-        LocalDateTime last_update
-) {}
+@Data
+public class CategoryDTO {
+    private Integer categoryId;
+    private String name;
+}

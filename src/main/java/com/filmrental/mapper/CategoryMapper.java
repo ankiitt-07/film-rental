@@ -8,22 +8,22 @@ import org.springframework.stereotype.Component;
 public class CategoryMapper {
 
     public CategoryDTO toDto(Category category) {
-        if (category == null) return null;
-
-        return new CategoryDTO(
-                category.getCategoryId(),
-                category.getName(),
-                category.getLastUpdate()
-        );
+        if (category == null) {
+            return null;
+        }
+        CategoryDTO dto = new CategoryDTO();
+        dto.setCategoryId(category.getCategoryId());
+        dto.setName(category.getName());
+        return dto;
     }
 
     public Category toEntity(CategoryDTO dto) {
-        if (dto == null) return null;
-
+        if (dto == null) {
+            return null;
+        }
         Category category = new Category();
-        category.setCategoryId(dto.category_id());
-        category.setName(dto.name());
-        category.setLastUpdate(dto.last_update());
+        category.setCategoryId(dto.getCategoryId());
+        category.setName(dto.getName());
         return category;
     }
 }

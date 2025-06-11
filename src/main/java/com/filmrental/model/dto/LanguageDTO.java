@@ -1,9 +1,9 @@
 package com.filmrental.model.dto;
 
-import java.time.LocalDateTime;
+import lombok.Data;
 
-public record LanguageDTO(
-        Integer languageId,
-        String name,
-        LocalDateTime lastUpdate
-) {}
+@Data
+public class LanguageDTO {
+    private Integer languageId;
+    private String name;
+}

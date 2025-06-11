@@ -1,31 +1,32 @@
 package com.filmrental.controller;
 
-import com.filmrental.exception.ResourceNotFoundException;
 import com.filmrental.mapper.ActorMapper;
+import com.filmrental.mapper.CategoryMapper;
 import com.filmrental.mapper.FilmMapper;
 import com.filmrental.model.dto.ActorDTO;
+import com.filmrental.model.dto.CategoryDTO;
 import com.filmrental.model.dto.FilmDTO;
-import com.filmrental.model.entity.Actor;
 import com.filmrental.model.entity.Category;
 import com.filmrental.model.entity.Film;
 import com.filmrental.model.entity.FilmCategory;
+import com.filmrental.model.entity.FilmCategoryId;
 import com.filmrental.model.entity.Language;
 import com.filmrental.repository.ActorRepository;
 import com.filmrental.repository.CategoryRepository;
-import com.filmrental.repository.FilmCategoryRepository;
 import com.filmrental.repository.FilmRepository;
 import com.filmrental.repository.LanguageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -36,560 +37,425 @@ public class FilmController {
     private FilmRepository filmRepository;
 
     @Autowired
-    private CategoryRepository categoryRepository;
+    private LanguageRepository languageRepository;
 
     @Autowired
-    private FilmCategoryRepository filmCategoryRepository;
+    private CategoryRepository categoryRepository;
 
     @Autowired
     private ActorRepository actorRepository;
 
     @Autowired
-    private LanguageRepository languageRepository;
+    private FilmMapper filmMapper;
 
     @Autowired
-    private FilmMapper filmMapper;
+    private CategoryMapper categoryMapper;
 
     @Autowired
     private ActorMapper actorMapper;
 
-    @PostMapping("/post")
-    public ResponseEntity<FilmDTO> addFilm(@RequestBody FilmDTO filmDTO) {
+    @GetMapping("/all")
+    public ResponseEntity<Page<FilmDTO>> getAllFilms(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            if (filmDTO == null) {
-                throw new IllegalArgumentException("Film data cannot be null");
-            }
-            if (filmDTO.getTitle() == null || filmDTO.getTitle().trim().isEmpty()) {
-                throw new IllegalArgumentException("Film title cannot be empty");
-            }
-            if (filmDTO.getLanguageId() == null) {
-                throw new IllegalArgumentException("Language ID is required");
-            }
-
-            // Create and save Film entity
-            Film film = new Film();
-            film.setTitle(filmDTO.getTitle());
-            film.setDescription(filmDTO.getDescription());
-            film.setReleaseYear(filmDTO.getReleaseYear());
-            film.setRentalDuration(filmDTO.getRentalDuration());
-            film.setRentalRate(filmDTO.getRentalRate());
-            film.setLength(filmDTO.getLength());
-            film.setReplacementCost(filmDTO.getReplacementCost());
-            film.setRating(filmDTO.getRating());
-            film.setSpecialFeatures(filmDTO.getSpecialFeatures());
-            film.setLastUpdate(LocalDateTime.now());
-
-            // Set language
-            Language language = languageRepository.findById(filmDTO.getLanguageId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Language not found for ID: " + filmDTO.getLanguageId()));
-            film.setLanguage(language);
-
-            // Set original language if provided
-            if (filmDTO.getOriginalLanguageId() != null) {
-                Language originalLanguage = languageRepository.findById(filmDTO.getOriginalLanguageId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Original language not found for ID: " + filmDTO.getOriginalLanguageId()));
-                film.setOriginalLanguage(originalLanguage);
-            }
-
-            Film savedFilm = filmRepository.save(film);
-
-            // Handle actors
-            if (filmDTO.getActors() != null && !filmDTO.getActors().isEmpty()) {
-                Set<Actor> associatedActors = new HashSet<>();
-                for (ActorDTO actorDTO : filmDTO.getActors()) {
-                    if (actorDTO.getFirstName() == null || actorDTO.getLastName() == null) {
-                        throw new IllegalArgumentException("Actor first name and last name are required");
-                    }
-                    Actor actor = actorRepository.findByFirstNameAndLastName(actorDTO.getFirstName(), actorDTO.getLastName())
-                            .orElseGet(() -> {
-                                Actor newActor = new Actor();
-                                newActor.setFirstName(actorDTO.getFirstName());
-                                newActor.setLastName(actorDTO.getLastName());
-                                newActor.setLastUpdate(LocalDateTime.now());
-                                return actorRepository.save(newActor);
-                            });
-                    actor.getFilms().add(savedFilm);
-                    actorRepository.save(actor);
-                    associatedActors.add(actor);
-                }
-                savedFilm.setActors(associatedActors);
-            }
-
-            // Return DTO
-            return ResponseEntity.ok(filmMapper.toDto(savedFilm));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<Film> films = filmRepository.findAll(pageable);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.map(filmMapper::toDto));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to add film: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PostMapping("/post")
+    public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
+        try {
+            if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
+                throw new IllegalArgumentException("Title and language ID are required");
+            }
+            if (filmRepository.findByTitle(filmDTO.getTitle()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Film already exists");
+            }
+            Language language = languageRepository.findById(filmDTO.getLanguageId())
+                    .orElseThrow(() -> new IllegalArgumentException("Language not found with ID: " + filmDTO.getLanguageId()));
+            Film film = filmMapper.toEntity(filmDTO);
+            film.setLanguage(language);
+            film.setLastUpdate(LocalDateTime.now());
+            filmRepository.save(film);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating film");
         }
     }
 
     @GetMapping("/title/{title}")
-    public ResponseEntity<FilmDTO> getFilmByTitle(@PathVariable String title) {
+    public ResponseEntity<List<FilmDTO>> getFilmsByTitle(@PathVariable String title) {
         try {
             if (title == null || title.trim().isEmpty()) {
                 throw new IllegalArgumentException("Title cannot be empty");
             }
-            Film film = filmRepository.findByTitle(title)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with title: " + title));
-            return ResponseEntity.ok(filmMapper.toDto(film));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            List<Film> films = filmRepository.findByTitleContainingIgnoreCase(title);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve film by title: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/year/{year}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByYear(@PathVariable int year) {
+    public ResponseEntity<List<FilmDTO>> getFilmsByYear(@PathVariable Integer year) {
         try {
-            if (year < 1888 || year > Year.now().getValue()) {
-                throw new IllegalArgumentException("Invalid release year: " + year);
+            if (year <= 0) {
+                throw new IllegalArgumentException("Invalid year");
             }
-            List<Film> films = filmRepository.findByReleaseYear(year);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found for year: " + year);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            List<Film> films = filmRepository.findByReleaseYear(Year.of(year));
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by year: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/duration/gt/{rd}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByRentalDurationGreaterThan(@PathVariable Integer rd) {
+    @GetMapping("/countbyyear")
+    public ResponseEntity<List<Object[]>> getFilmCountByYear() {
         try {
-            if (rd == null || rd < 0) {
-                throw new IllegalArgumentException("Rental duration must be non-negative");
-            }
-            List<Film> films = filmRepository.findByRentalDurationGreaterThan(rd);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with rental duration greater than: " + rd);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            List<Object[]> results = filmRepository.findFilmCountByYear();
+            return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by rental duration: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/duration/lt/{rd}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByRentalDurationLessThan(@PathVariable Integer rd) {
+    @GetMapping("/rentalduration/greaterthan/{duration}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByRentalDurationGreaterThan(@PathVariable Integer duration) {
         try {
-            if (rd == null || rd < 0) {
-                throw new IllegalArgumentException("Rental duration must be non-negative");
+            if (duration <= 0) {
+                throw new IllegalArgumentException("Invalid rental duration");
             }
-            List<Film> films = filmRepository.findByRentalDurationLessThan(rd);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with rental duration less than: " + rd);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            List<Film> films = filmRepository.findByRentalDurationGreaterThan(duration);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by rental duration: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/rate/gt/{rate}")
+    @GetMapping("/rentalduration/lessthan/{duration}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByRentalDurationLessThan(@PathVariable Integer duration) {
+        try {
+            if (duration <= 0) {
+                throw new IllegalArgumentException("Invalid rental duration");
+            }
+            List<Film> films = filmRepository.findByRentalDurationLessThan(duration);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/rentalrate/greaterthan/{rate}")
     public ResponseEntity<List<FilmDTO>> getFilmsByRentalRateGreaterThan(@PathVariable BigDecimal rate) {
         try {
-            if (rate == null || rate.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException("Rental rate must be non-negative");
+            if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Invalid rental rate");
             }
             List<Film> films = filmRepository.findByRentalRateGreaterThan(rate);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with rental rate greater than: " + rate);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by rental rate: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/rate/lt/{rate}")
+    @GetMapping("/rentalrate/lessthan/{rate}")
     public ResponseEntity<List<FilmDTO>> getFilmsByRentalRateLessThan(@PathVariable BigDecimal rate) {
         try {
-            if (rate == null || rate.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException("Rental rate must be non-negative");
+            if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Invalid rental rate");
             }
             List<Film> films = filmRepository.findByRentalRateLessThan(rate);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with rental rate less than: " + rate);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by rental rate: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/length/gt/{length}")
+    @GetMapping("/length/greaterthan/{length}")
     public ResponseEntity<List<FilmDTO>> getFilmsByLengthGreaterThan(@PathVariable Integer length) {
         try {
-            if (length == null || length < 0) {
-                throw new IllegalArgumentException("Length must be non-negative");
+            if (length <= 0) {
+                throw new IllegalArgumentException("Invalid length");
             }
             List<Film> films = filmRepository.findByLengthGreaterThan(length);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with length greater than: " + length);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by length: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/length/lt/{length}")
+    @GetMapping("/length/lessthan/{length}")
     public ResponseEntity<List<FilmDTO>> getFilmsByLengthLessThan(@PathVariable Integer length) {
         try {
-            if (length == null || length < 0) {
-                throw new IllegalArgumentException("Length must be non-negative");
+            if (length <= 0) {
+                throw new IllegalArgumentException("Invalid length");
             }
             List<Film> films = filmRepository.findByLengthLessThan(length);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with length less than: " + length);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by length: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/betweenyear/{from}/{to}")
-    public ResponseEntity<List<FilmDTO>> getFilmsBetweenYears(@PathVariable int from, @PathVariable int to) {
+    @GetMapping("/year/between/{startYear}/{endYear}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByYearBetween(@PathVariable Integer startYear, @PathVariable Integer endYear) {
         try {
-            if (from < 1888 || to > Year.now().getValue() || from > to) {
-                throw new IllegalArgumentException("Invalid year range: from " + from + " to " + to);
+            if (startYear <= 0 || endYear <= 0 || startYear > endYear) {
+                throw new IllegalArgumentException("Invalid year range");
             }
-            List<Film> films = filmRepository.findByReleaseYearGreaterThanEqualAndReleaseYearLessThanEqual(from, to);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found between years " + from + " and " + to);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            List<Film> films = filmRepository.findByReleaseYearBetween(Year.of(startYear), Year.of(endYear));
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by year range: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/rating/gt/{rating}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByRatingGreaterThan(@PathVariable String rating) {
-        try {
-            if (rating == null || rating.trim().isEmpty()) {
-                throw new IllegalArgumentException("Rating cannot be empty");
-            }
-            List<Film> films = filmRepository.findByRatingGreaterThan(rating);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with rating greater than: " + rating);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by rating: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/rating/lt/{rating}")
+    @GetMapping("/rating/lessthan/{rating}")
     public ResponseEntity<List<FilmDTO>> getFilmsByRatingLessThan(@PathVariable String rating) {
         try {
             if (rating == null || rating.trim().isEmpty()) {
                 throw new IllegalArgumentException("Rating cannot be empty");
             }
             List<Film> films = filmRepository.findByRatingLessThan(rating);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found with rating less than: " + rating);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by rating: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/language/{lang}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByLanguage(@PathVariable Integer lang) {
-        try {
-            if (lang == null || lang <= 0) {
-                throw new IllegalArgumentException("Invalid language ID");
-            }
-            List<Film> films = filmRepository.findByLanguageLanguageId(lang);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found for language ID: " + lang);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by language: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/countbyyear")
-    public ResponseEntity<Map<Integer, Long>> getFilmCountByYear() {
-        try {
-            Map<Integer, Long> countByYear = filmRepository.findAll().stream()
-                    .collect(Collectors.groupingBy(
-                            f -> f.getReleaseYear().getValue(),
-                            Collectors.counting()
-                    ));
-            if (countByYear.isEmpty()) {
-                throw new ResourceNotFoundException("No films found");
-            }
-            return ResponseEntity.ok(countByYear);
-        } catch (ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve film count by year: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/{id}/actors")
-    public ResponseEntity<List<ActorDTO>> getActorsByFilm(@PathVariable Integer id) {
-        try {
-            if (id == null || id <= 0) {
-                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            List<ActorDTO> actorDTOs = film.getActors().stream()
-                    .map(actorMapper::toActorDto)
-                    .collect(Collectors.toList());
-            if (actorDTOs.isEmpty()) {
-                throw new ResourceNotFoundException("No actors found for film with ID: " + id);
-            }
-            return ResponseEntity.ok(actorDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve actors for film: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/category/{category}")
-    public ResponseEntity<List<FilmDTO>> getFilmsByCategory(@PathVariable String category) {
-        try {
-            if (category == null || category.trim().isEmpty()) {
-                throw new IllegalArgumentException("Category name cannot be empty");
-            }
-            List<Film> films = filmRepository.findByFilmCategoriesCategoryName(category);
-            if (films.isEmpty()) {
-                throw new ResourceNotFoundException("No films found for category: " + category);
-            }
-            List<FilmDTO> filmDTOs = films.stream()
-                    .map(filmMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filmDTOs);
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve films by category: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/{id}/actor")
-    public ResponseEntity<FilmDTO> assignActorToFilm(@PathVariable Integer id, @RequestBody ActorDTO actorDTO) {
-        try {
-            if (id == null || id <= 0) {
-                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
-            }
-            if (actorDTO.getFirstName() == null || actorDTO.getLastName() == null) {
-                throw new IllegalArgumentException("Actor first name and last name are required");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            Actor actor = actorRepository.findByFirstNameAndLastName(actorDTO.getFirstName(), actorDTO.getLastName())
-                    .orElseGet(() -> {
-                        Actor newActor = new Actor();
-                        newActor.setFirstName(actorDTO.getFirstName());
-                        newActor.setLastName(actorDTO.getLastName());
-                        newActor.setLastUpdate(LocalDateTime.now());
-                        return actorRepository.save(newActor);
-                    });
-            actor.getFilms().add(film);
-            actorRepository.save(actor);
-            film.getActors().add(actor);
-            return ResponseEntity.ok(filmMapper.toDto(film));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to assign actor to film: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/update/title/{id}")
-    public ResponseEntity<FilmDTO> updateFilmTitle(@PathVariable Integer id, @RequestBody String title) {
-        try {
-            if (title == null || title.trim().isEmpty()) {
-                throw new IllegalArgumentException("Title cannot be empty");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            film.setTitle(title);
-            film.setLastUpdate(LocalDateTime.now());
-            Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update film title: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/update/releaseyear/{id}")
-    public ResponseEntity<FilmDTO> updateFilmReleaseYear(@PathVariable Integer id, @RequestBody Year releaseYear) {
-        try {
-            if (releaseYear == null || releaseYear.getValue() < 1888 || releaseYear.getValue() > Year.now().getValue()) {
-                throw new IllegalArgumentException("Invalid release year");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            film.setReleaseYear(releaseYear);
-            film.setLastUpdate(LocalDateTime.now());
-            Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update film release year: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/update/rentalduration/{id}")
-    public ResponseEntity<FilmDTO> updateFilmRentalDuration(@PathVariable Integer id, @RequestBody Integer rentalDuration) {
-        try {
-            if (rentalDuration == null || rentalDuration < 0) {
-                throw new IllegalArgumentException("Rental duration must be non-negative");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            film.setRentalDuration(rentalDuration);
-            film.setLastUpdate(LocalDateTime.now());
-            Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update film rental duration: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/update/rentalrate/{id}")
-    public ResponseEntity<FilmDTO> updateFilmRentalRate(@PathVariable Integer id, @RequestBody BigDecimal rentalRate) {
-        try {
-            if (rentalRate == null || rentalRate.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException("Rental rate must be non-negative");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            film.setRentalRate(rentalRate);
-            Film updatedFilm = filmRepository.save(film);
-            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to update film rental rate: " + e.getMessage());
-        }
-    }
-
-    @PutMapping("/update/rating/{id}")
-    public ResponseEntity<FilmDTO> updateFilmRating(@PathVariable Integer id, @RequestBody String rating) {
+    @GetMapping("/rating/greaterthan/{rating}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByRatingGreaterThan(@PathVariable String rating) {
         try {
             if (rating == null || rating.trim().isEmpty()) {
                 throw new IllegalArgumentException("Rating cannot be empty");
             }
+            List<Film> films = filmRepository.findByRatingGreaterThan(rating);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/language/{name}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByLanguage(@PathVariable String name) {
+        try {
+            if (name == null || name.trim().isEmpty()) {
+                throw new IllegalArgumentException("Language name cannot be empty");
+            }
+            List<Film> films = filmRepository.findByLanguage_Name(name);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/category/{categoryName}")
+    public ResponseEntity<List<FilmDTO>> getFilmsByCategory(@PathVariable String categoryName) {
+        try {
+            if (categoryName == null || categoryName.trim().isEmpty()) {
+                throw new IllegalArgumentException("Category name cannot be empty");
+            }
+            List<Film> films = filmRepository.findByFilmCategories_Category_Name(categoryName);
+            return films.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(films.stream().map(filmMapper::toDto).collect(Collectors.toList()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/{id}/actors")
+    public ResponseEntity<List<ActorDTO>> getActorsByFilmId(@PathVariable Integer id) {
+        try {
+            if (id <= 0) {
+                throw new IllegalArgumentException("Invalid film ID");
+            }
             Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
-            film.setRating(rating);
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            List<ActorDTO> actorDTOs = film.getActors().stream()
+                    .map(actorMapper::toDto)
+                    .collect(Collectors.toList());
+            return actorDTOs.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(actorDTOs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/update/title/{id}")
+    public ResponseEntity<FilmDTO> updateTitle(@PathVariable Integer id, @RequestBody String title) {
+        try {
+            if (id <= 0 || title == null || title.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ID or title");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            film.setTitle(title);
+            film.setLastUpdate(LocalDateTime.now());
             Film updatedFilm = filmRepository.save(film);
             return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to update film rating: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/update/releaseyear/{id}")
+    public ResponseEntity<FilmDTO> updateReleaseYear(@PathVariable Integer id, @RequestBody Integer year) {
+        try {
+            if (id <= 0 || year == null || year <= 0) {
+                throw new IllegalArgumentException("Invalid ID or year");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            film.setReleaseYear(Year.of(year));
+            film.setLastUpdate(LocalDateTime.now());
+            Film updatedFilm = filmRepository.save(film);
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/update/rentalduration/{id}")
+    public ResponseEntity<FilmDTO> updateRentalDuration(@PathVariable Integer id, @RequestBody Integer rentalDuration) {
+        try {
+            if (id <= 0 || rentalDuration == null || rentalDuration <= 0) {
+                throw new IllegalArgumentException("Invalid ID or rental duration");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            film.setRentalDuration(rentalDuration);
+            film.setLastUpdate(LocalDateTime.now());
+            Film updatedFilm = filmRepository.save(film);
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/update/rentalrate/{id}")
+    public ResponseEntity<FilmDTO> updateRentalRate(@PathVariable Integer id, @RequestBody BigDecimal rentalRate) {
+        try {
+            if (id <= 0 || rentalRate == null || rentalRate.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Invalid ID or rental rate");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            film.setRentalRate(rentalRate);
+            film.setLastUpdate(LocalDateTime.now());
+            Film updatedFilm = filmRepository.save(film);
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/update/rating/{id}")
+    public ResponseEntity<FilmDTO> updateRating(@PathVariable Integer id, @RequestBody String rating) {
+        try {
+            if (id <= 0 || rating == null || rating.trim().isEmpty()) {
+                throw new IllegalArgumentException("Invalid ID or rating");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            film.setRating(rating);
+            film.setLastUpdate(LocalDateTime.now());
+            Film updatedFilm = filmRepository.save(film);
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @PutMapping("/update/language/{id}")
-    public ResponseEntity<FilmDTO> updateFilmLanguage(@PathVariable Integer id, @RequestBody Integer languageId) {
+    public ResponseEntity<FilmDTO> updateLanguage(@PathVariable Integer id, @RequestBody Integer languageId) {
         try {
-            throw new UnsupportedOperationException("Language update not implemented");
+            if (id <= 0 || languageId == null || languageId <= 0) {
+                throw new IllegalArgumentException("Invalid film ID or language ID");
+            }
+            Film film = filmRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+            Language language = languageRepository.findById(languageId)
+                    .orElseThrow(() -> new IllegalArgumentException("Language not found with ID: " + languageId));
+            film.setLanguage(language);
+            film.setLastUpdate(LocalDateTime.now());
+            Film updatedFilm = filmRepository.save(film);
+            return ResponseEntity.ok(filmMapper.toDto(updatedFilm));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to update film language: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @PutMapping("/update/category/{id}")
-    public ResponseEntity<FilmDTO> updateFilmCategory(@PathVariable Integer id, @RequestBody Integer categoryId) {
+    @PutMapping("/update/{id}/category")
+    public ResponseEntity<List<CategoryDTO>> assignCategory(@PathVariable Integer id, @RequestBody Integer categoryId) {
         try {
-            if (id == null || id <= 0) {
-                throw new IllegalArgumentException("Invalid film ID: ID must be a positive integer");
-            }
-            if (categoryId == null || categoryId <= 0) {
-                throw new IllegalArgumentException("Invalid category ID: ID must be a positive integer");
+            if (id <= 0 || categoryId <= 0) {
+                throw new IllegalArgumentException("Invalid film or category ID");
             }
             Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Film not found with ID: " + id));
+                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
             Category category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with ID: " + categoryId));
-            FilmCategory filmCategory = filmCategoryRepository
-                    .findByFilm_FilmIdAndCategory_CategoryId(film.getFilmId(), category.getCategoryId())
-                    .orElse(new FilmCategory());
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + categoryId));
+            FilmCategory filmCategory = new FilmCategory();
+            filmCategory.setId(new FilmCategoryId(film.getFilmId(), category.getCategoryId()));
             filmCategory.setFilm(film);
             filmCategory.setCategory(category);
             filmCategory.setLastUpdate(LocalDateTime.now());
-            filmCategoryRepository.save(filmCategory);
-            return ResponseEntity.ok(filmMapper.toDto(film));
-        } catch (IllegalArgumentException | ResourceNotFoundException e) {
-            throw e;
+            film.getFilmCategories().add(filmCategory);
+            film.setLastUpdate(LocalDateTime.now());
+            Film updatedFilm = filmRepository.save(film);
+            List<CategoryDTO> categoryDTOs = updatedFilm.getFilmCategories().stream()
+                    .map(fc -> categoryMapper.toDto(fc.getCategory()))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(categoryDTOs);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to update film category: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

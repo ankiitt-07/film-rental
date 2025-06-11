@@ -8,20 +8,22 @@ import org.springframework.stereotype.Component;
 public class CountryMapper {
 
     public CountryDTO toDto(Country country) {
-        if (country == null) return null;
-        return new CountryDTO(
-                country.getCountryId(),
-                country.getCountry(),
-                country.getLastUpdate()
-        );
+        if (country == null) {
+            return null;
+        }
+        CountryDTO dto = new CountryDTO();
+        dto.setCountryId(country.getCountryId());
+        dto.setCountry(country.getCountry());
+        return dto;
     }
 
     public Country toEntity(CountryDTO dto) {
-        if (dto == null) return null;
+        if (dto == null) {
+            return null;
+        }
         Country country = new Country();
         country.setCountryId(dto.getCountryId());
         country.setCountry(dto.getCountry());
-        country.setLastUpdate(dto.getLastUpdate());
         return country;
     }
 }

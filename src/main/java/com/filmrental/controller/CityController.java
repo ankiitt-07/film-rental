@@ -1,79 +1,37 @@
 package com.filmrental.controller;
 
-import com.filmrental.mapper.StaffMapper;
-import com.filmrental.mapper.StoreMapper;
-import com.filmrental.model.dto.StaffDTO;
-import com.filmrental.model.dto.StoreDTO;
+import com.filmrental.mapper.CityMapper;
+import com.filmrental.model.dto.CityDTO;
 import com.filmrental.model.entity.City;
 import com.filmrental.repository.CityRepository;
-import com.filmrental.repository.StaffRepository;
-import com.filmrental.repository.StoreRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 @RestController
-@RequestMapping("/api/customers/city")
+@RequestMapping("/api/cities")
 public class CityController {
 
     @Autowired
     private CityRepository cityRepository;
 
     @Autowired
-    private StoreRepository storeRepository;
+    private CityMapper cityMapper;
 
-    @Autowired
-    private StaffRepository staffRepository;
-
-    @Autowired
-    private StoreMapper storeMapper;
-
-    @Autowired
-    private StaffMapper staffMapper;
-
-    // Get stores by city name
-    @GetMapping("/{city}/stores")
-    public ResponseEntity<List<StoreDTO>> getStoresByCity(@PathVariable("city") String city) {
+    @GetMapping("/all")
+    public ResponseEntity<Page<CityDTO>> getAllCities(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         try {
-            City cityEntity = cityRepository.findByCity(city)
-                    .orElseThrow(() -> new IllegalArgumentException("City not found: " + city));
-
-            List<StoreDTO> stores = storeRepository.findByAddressCity(cityEntity)
-                    .stream()
-                    .map(storeMapper::toDto)
-                    .collect(Collectors.toList());
-
-            if (stores.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            return ResponseEntity.ok(stores);
+            Pageable pageable = PageRequest.of(page, size);
+            Page<City> cities = cityRepository.findAll(pageable);
+            return cities.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(cities.map(cityMapper::toDto));
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching stores in city: " + city);
-        }
-    }
-
-    // Get staff by city name
-    @GetMapping("/{city}/staff")
-    public ResponseEntity<List<StaffDTO>> getStaffByCity(@PathVariable("city") String city) {
-        try {
-            City cityEntity = cityRepository.findByCity(city)
-                    .orElseThrow(() -> new IllegalArgumentException("City not found: " + city));
-
-            List<StaffDTO> staff = staffRepository.findByAddressCity(cityEntity)
-                    .stream()
-                    .map(staffMapper::staffToDTO)
-                    .collect(Collectors.toList());
-
-            if (staff.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-            }
-            return ResponseEntity.ok(staff);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Error fetching staff in city: " + city);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

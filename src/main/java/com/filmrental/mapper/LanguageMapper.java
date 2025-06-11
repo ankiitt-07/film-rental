@@ -7,23 +7,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class LanguageMapper {
 
-    public static LanguageDTO toDto(Language language) {
-        if (language == null) return null;
-
-        return new LanguageDTO(
-                language.getLanguageId(),
-                language.getName(),
-                language.getLastUpdate()
-        );
+    public LanguageDTO toDto(Language language) {
+        if (language == null) {
+            return null;
+        }
+        LanguageDTO dto = new LanguageDTO();
+        dto.setLanguageId(language.getLanguageId());
+        dto.setName(language.getName());
+        return dto;
     }
 
-    public static Language toEntity(LanguageDTO dto) {
-        if (dto == null) return null;
-
+    public Language toEntity(LanguageDTO dto) {
+        if (dto == null) {
+            return null;
+        }
         Language language = new Language();
-        language.setLanguageId(dto.languageId());
-        language.setName(dto.name());
-        language.setLastUpdate(dto.lastUpdate());
+        language.setLanguageId(dto.getLanguageId());
+        language.setName(dto.getName());
         return language;
     }
 }

@@ -1,4 +1,3 @@
-// Film.java
 package com.filmrental.model.entity;
 
 import jakarta.persistence.*;
@@ -30,11 +29,11 @@ public class Film {
     @Column(name = "release_year")
     private Year releaseYear;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "language_id", nullable = false)
     private Language language;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "original_language_id")
     private Language originalLanguage;
 
@@ -59,13 +58,19 @@ public class Film {
     @Column(name = "last_update", nullable = false)
     private LocalDateTime lastUpdate;
 
-    @ManyToMany(mappedBy = "films")
-    @JsonManagedReference // Add to prevent serialization issues
+    @ManyToMany(mappedBy = "films", fetch = FetchType.LAZY)
+    @JsonManagedReference
     private Set<Actor> actors = new HashSet<>();
 
-    @OneToMany(mappedBy = "film")
+    @OneToMany(mappedBy = "film", fetch = FetchType.LAZY)
     private List<FilmCategory> filmCategories;
 
-    @OneToMany(mappedBy = "film")
+    @OneToMany(mappedBy = "film", fetch = FetchType.LAZY)
     private List<Inventory> inventories;
+
+    @PrePersist
+    @PreUpdate
+    private void updateTimestamp() {
+        this.lastUpdate = LocalDateTime.now();
+    }
 }
