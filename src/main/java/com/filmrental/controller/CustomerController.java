@@ -54,26 +54,60 @@ public class CustomerController {
         }
     }
 
-    @PostMapping("/post")
-    public ResponseEntity<String> addCustomer(@RequestBody CustomerDTO customerDTO) {
-        try {
-            if (customerDTO.getFirstName() == null || customerDTO.getLastName() == null || customerDTO.getEmail() == null) {
-                throw new IllegalArgumentException("First name, last name, and email are required");
-            }
-            if (customerRepository.findByEmail(customerDTO.getEmail()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
-            }
-            Customer customer = customerMapper.toEntity(customerDTO);
-            customer.setCreateDate(LocalDate.now());
-            customer.setLastUpdate(LocalDateTime.now());
-            customerRepository.save(customer);
-            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating customer");
+//    @PostMapping("/post")
+//    public ResponseEntity<String> addCustomer(@RequestBody CustomerDTO customerDTO) {
+//        try {
+//            if (customerDTO.getFirstName() == null || customerDTO.getLastName() == null || customerDTO.getEmail() == null) {
+//                throw new IllegalArgumentException("First name, last name, and email are required");
+//            }
+//            if (customerRepository.findByEmail(customerDTO.getEmail()).isPresent()) {
+//                return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
+//            }
+//            Customer customer = customerMapper.toEntity(customerDTO);
+//            customer.setCreateDate(LocalDate.now());
+//            customer.setLastUpdate(LocalDateTime.now());
+//            customerRepository.save(customer);
+//            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating customer");
+//        }
+//    }
+@PostMapping("/post")
+public ResponseEntity<String> addCustomer(@RequestBody CustomerDTO customerDTO) {
+    try {
+        if (customerDTO.getFirstName() == null || customerDTO.getLastName() == null || customerDTO.getEmail() == null) {
+            throw new IllegalArgumentException("First name, last name, and email are required");
         }
+
+        if (customerRepository.findByEmail(customerDTO.getEmail()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
+        }
+
+        Customer customer = customerMapper.toEntity(customerDTO);
+
+        // Fetch store and address
+        Store store = storeRepository.findById(customerDTO.getStoreId())
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+        Address address = addressRepository.findById(customerDTO.getAddressId())
+                .orElseThrow(() -> new IllegalArgumentException("Address not found"));
+
+        customer.setStore(store);
+        customer.setAddress(address);
+
+        customer.setCreateDate(LocalDate.now());
+        customerRepository.save(customer);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+    } catch (IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    } catch (Exception e) {
+        e.printStackTrace(); // Log actual issue for now
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating customer");
     }
+}
+
 
     @GetMapping("/lastname/{ln}")
     public ResponseEntity<List<CustomerDTO>> getCustomersByLastName(@PathVariable String ln) {

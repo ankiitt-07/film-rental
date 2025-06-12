@@ -20,7 +20,7 @@ public class Store {
     private Integer storeId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_staff_id", nullable = false)
+    @JoinColumn(name = "manager_staff_id", nullable = true)
     private Staff managerStaff;
 
     @ManyToOne(fetch = FetchType.LAZY)

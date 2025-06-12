@@ -71,51 +71,34 @@ public class StoreController {
     }
 
     @PostMapping("/post")
-    public ResponseEntity<String> addStore(@RequestBody StoreDTO storeDTO) {
+    public ResponseEntity<?> addStore(@RequestBody StoreDTO dto) {
         try {
-            // Validate required fields
-            if (storeDTO.getFirstName() == null || storeDTO.getFirstName().trim().isEmpty() ||
-                    storeDTO.getLastName() == null || storeDTO.getLastName().trim().isEmpty() ||
-                    storeDTO.getAddressId() == null ||
-                    storeDTO.getEmail() == null || storeDTO.getEmail().trim().isEmpty()) {
-                throw new IllegalArgumentException("First name, last name, address ID, and email are required");
+            if (dto.getManagerStaffId() == null || dto.getAddressId() == null) {
+                throw new IllegalArgumentException("ManagerStaffId and AddressId are required");
             }
 
-            // Verify address exists
-            Address address = addressRepository.findById(storeDTO.getAddressId())
-                    .orElseThrow(() -> new IllegalArgumentException("Address not found with ID: " + storeDTO.getAddressId()));
+            Staff manager = staffRepository.findById(dto.getManagerStaffId())
+                    .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
 
-            // Check if email is unique
-            if (staffRepository.findByEmail(storeDTO.getEmail()).isPresent()) {
-                throw new IllegalArgumentException("Email already in use: " + storeDTO.getEmail());
-            }
+            Address address = addressRepository.findById(dto.getAddressId())
+                    .orElseThrow(() -> new IllegalArgumentException("Address not found"));
 
-            // Create new Staff (manager)
-            Staff managerStaff = new Staff();
-            managerStaff.setFirstName(storeDTO.getFirstName());
-            managerStaff.setLastName(storeDTO.getLastName());
-            managerStaff.setEmail(storeDTO.getEmail());
-            managerStaff.setAddress(address);
-            managerStaff.setActive(true); // Default
-            managerStaff.setUsername(storeDTO.getEmail().split("@")[0]); // Default username
-            managerStaff.setPassword("defaultPassword"); // Placeholder; use proper hashing in production
-            managerStaff.setLastUpdate(LocalDateTime.now());
-            Staff savedStaff = staffRepository.save(managerStaff);
-
-            // Create new Store
             Store store = new Store();
-            store.setManagerStaff(savedStaff);
+            store.setManagerStaff(manager);
             store.setAddress(address);
             store.setLastUpdate(LocalDateTime.now());
+
             storeRepository.save(store);
 
-            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+            return ResponseEntity.status(HttpStatus.CREATED).body("Store created successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating store: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating store");
         }
     }
+
+
 
     @PutMapping("/{storeId}/address/{addressId}")
     public ResponseEntity<StoreDTO> assignAddressToStore(@PathVariable Integer storeId, @PathVariable Integer addressId) {

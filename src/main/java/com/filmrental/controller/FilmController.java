@@ -6,11 +6,7 @@ import com.filmrental.mapper.FilmMapper;
 import com.filmrental.model.dto.ActorDTO;
 import com.filmrental.model.dto.CategoryDTO;
 import com.filmrental.model.dto.FilmDTO;
-import com.filmrental.model.entity.Category;
-import com.filmrental.model.entity.Film;
-import com.filmrental.model.entity.FilmCategory;
-import com.filmrental.model.entity.FilmCategoryId;
-import com.filmrental.model.entity.Language;
+import com.filmrental.model.entity.*;
 import com.filmrental.repository.ActorRepository;
 import com.filmrental.repository.CategoryRepository;
 import com.filmrental.repository.FilmRepository;
@@ -26,7 +22,9 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -67,28 +65,94 @@ public class FilmController {
         }
     }
 
-    @PostMapping("/post")
-    public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
-        try {
-            if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
-                throw new IllegalArgumentException("Title and language ID are required");
-            }
-            if (filmRepository.findByTitle(filmDTO.getTitle()).isPresent()) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Film already exists");
-            }
-            Language language = languageRepository.findById(filmDTO.getLanguageId())
-                    .orElseThrow(() -> new IllegalArgumentException("Language not found with ID: " + filmDTO.getLanguageId()));
-            Film film = filmMapper.toEntity(filmDTO);
-            film.setLanguage(language);
-            film.setLastUpdate(LocalDateTime.now());
-            filmRepository.save(film);
-            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating film");
+//    @PostMapping("/post")
+//    public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
+//        try {
+//            if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
+//                throw new IllegalArgumentException("Title and language ID are required");
+//            }
+//            if (filmRepository.findByTitle(filmDTO.getTitle()).isPresent()) {
+//                return ResponseEntity.status(HttpStatus.CONFLICT).body("Film already exists");
+//            }
+//            Language language = languageRepository.findById(filmDTO.getLanguageId())
+//                    .orElseThrow(() -> new IllegalArgumentException("Language not found with ID: " + filmDTO.getLanguageId()));
+//            Film film = filmMapper.toEntity(filmDTO);
+//            film.setLanguage(language);
+//            film.setLastUpdate(LocalDateTime.now());
+//            filmRepository.save(film);
+//            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating film");
+//        }
+//    }
+    @PostMapping
+public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
+    try {
+        // Validate required fields
+        if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Title and language ID are required");
         }
+
+        // Check if film already exists
+        if (filmRepository.findByTitle(filmDTO.getTitle()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Film with title '" + filmDTO.getTitle() + "' already exists");
+        }
+
+        // Fetch language
+        Language language = languageRepository.findById(filmDTO.getLanguageId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Language not found with ID: " + filmDTO.getLanguageId()));
+
+        // Create Film entity
+        Film film = new Film();
+        film.setTitle(filmDTO.getTitle());
+        film.setDescription(filmDTO.getDescription());
+        film.setReleaseYear(filmDTO.getReleaseYear());
+        film.setLanguage(language);
+        film.setOriginalLanguage(filmDTO.getOriginalLanguageId() != null
+                ? languageRepository.findById(filmDTO.getOriginalLanguageId()).orElse(null)
+                : null);
+        film.setRentalDuration(filmDTO.getRentalDuration());
+        film.setRentalRate(filmDTO.getRentalRate());
+        film.setLength(filmDTO.getLength());
+        film.setReplacementCost(filmDTO.getReplacementCost());
+        film.setRating(filmDTO.getRating());
+        film.setSpecialFeatures(filmDTO.getSpecialFeatures());
+        film.setLastUpdate(LocalDateTime.now());
+
+        // Handle actors
+        Set<Actor> actors = new HashSet<>();
+        if (filmDTO.getActorIds() != null && !filmDTO.getActorIds().isEmpty()) {
+            List<Actor> foundActors = actorRepository.findAllById(filmDTO.getActorIds());
+            if (foundActors.size() != filmDTO.getActorIds().size()) {
+                List<Integer> missingIds = filmDTO.getActorIds().stream()
+                        .filter(id -> foundActors.stream().noneMatch(a -> a.getActorId().equals(id)))
+                        .collect(Collectors.toList());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Actors not found for IDs: " + missingIds);
+            }
+            actors.addAll(foundActors);
+        }
+        film.setActors(actors);
+
+        // Save the film
+        filmRepository.save(film);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Film created successfully with ID: " + film.getFilmId());
+
+    } catch (IllegalArgumentException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(e.getMessage());
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error creating film: " + e.getMessage());
     }
+}
+
 
     @GetMapping("/title/{title}")
     public ResponseEntity<List<FilmDTO>> getFilmsByTitle(@PathVariable String title) {
@@ -429,33 +493,33 @@ public class FilmController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-
-    @PutMapping("/update/{id}/category")
-    public ResponseEntity<List<CategoryDTO>> assignCategory(@PathVariable Integer id, @RequestBody Integer categoryId) {
-        try {
-            if (id <= 0 || categoryId <= 0) {
-                throw new IllegalArgumentException("Invalid film or category ID");
-            }
-            Film film = filmRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
-            Category category = categoryRepository.findById(categoryId)
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + categoryId));
-            FilmCategory filmCategory = new FilmCategory();
-            filmCategory.setId(new FilmCategoryId(film.getFilmId(), category.getCategoryId()));
-            filmCategory.setFilm(film);
-            filmCategory.setCategory(category);
-            filmCategory.setLastUpdate(LocalDateTime.now());
-            film.getFilmCategories().add(filmCategory);
-            film.setLastUpdate(LocalDateTime.now());
-            Film updatedFilm = filmRepository.save(film);
-            List<CategoryDTO> categoryDTOs = updatedFilm.getFilmCategories().stream()
-                    .map(fc -> categoryMapper.toDto(fc.getCategory()))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(categoryDTOs);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
 }
+
+//    @PutMapping("/update/{id}/category")
+//    public ResponseEntity<List<CategoryDTO>> assignCategory(@PathVariable Integer id, @RequestBody Integer categoryId) {
+//        try {
+//            if (id <= 0 || categoryId <= 0) {
+//                throw new IllegalArgumentException("Invalid film or category ID");
+//            }
+//            Film film = filmRepository.findById(id)
+//                    .orElseThrow(() -> new IllegalArgumentException("Film not found with ID: " + id));
+//            Category category = categoryRepository.findById(categoryId)
+//                    .orElseThrow(() -> new IllegalArgumentException("Category not found with ID: " + categoryId));
+//            FilmCategory filmCategory = new FilmCategory();
+//            filmCategory.setId(new FilmCategoryId(film.getFilmId(), category.getCategoryId()));
+//            filmCategory.setFilm(film);
+//            filmCategory.setCategory(category);
+//            filmCategory.setLastUpdate(LocalDateTime.now());
+//            film.getFilmCategories().add(filmCategory);
+//            film.setLastUpdate(LocalDateTime.now());
+//            Film updatedFilm = filmRepository.save(film);
+//            List<CategoryDTO> categoryDTOs = updatedFilm.getFilmCategories().stream()
+//                    .map(fc -> categoryMapper.toDto(fc.getCategory()))
+//                    .collect(Collectors.toList());
+//            return ResponseEntity.ok(categoryDTOs);
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
+//    }
