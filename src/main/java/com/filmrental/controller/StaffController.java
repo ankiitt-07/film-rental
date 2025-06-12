@@ -60,19 +60,29 @@ public class StaffController {
             if (staffDTO.getFirstName() == null || staffDTO.getLastName() == null || staffDTO.getAddressId() == null || staffDTO.getEmail() == null) {
                 throw new IllegalArgumentException("First name, last name, address ID, and email are required");
             }
+
             if (staffRepository.findByEmail(staffDTO.getEmail()).isPresent()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
             }
+
             Address address = addressRepository.findById(staffDTO.getAddressId())
                     .orElseThrow(() -> new IllegalArgumentException("Address not found with ID: " + staffDTO.getAddressId()));
+
+            Store store = storeRepository.findById(staffDTO.getStoreId())
+                    .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + staffDTO.getStoreId()));
+
             Staff staff = staffMapper.toEntity(staffDTO);
             staff.setAddress(address);
+            staff.setStore(store);
             staff.setLastUpdate(LocalDateTime.now());
+
             staffRepository.save(staff);
+
             return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
+            e.printStackTrace(); // log the exact issue during development
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating staff");
         }
     }

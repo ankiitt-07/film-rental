@@ -13,9 +13,7 @@ public class StoreMapper {
         }
         StoreDTO dto = new StoreDTO();
         dto.setStoreId(store.getStoreId());
-        dto.setFirstName(store.getManagerStaff() != null ? store.getManagerStaff().getFirstName() : null);
-        dto.setLastName(store.getManagerStaff() != null ? store.getManagerStaff().getLastName() : null);
-        dto.setEmail(store.getManagerStaff() != null ? store.getManagerStaff().getEmail() : null);
+        dto.setManagerStaffId(store.getManagerStaff() != null ? store.getManagerStaff().getStaffId() : null);
         dto.setAddressId(store.getAddress() != null ? store.getAddress().getAddressId() : null);
         return dto;
     }
@@ -25,7 +23,7 @@ public class StoreMapper {
             return null;
         }
         Store store = new Store();
-        // Fields are set in the controller for creation
+        // ManagerStaff and Address will be set in controller
         return store;
     }
 }
