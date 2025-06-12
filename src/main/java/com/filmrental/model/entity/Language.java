@@ -1,5 +1,6 @@
 package com.filmrental.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -22,9 +23,11 @@ public class Language {
     private LocalDateTime lastUpdate;
 
     @OneToMany(mappedBy = "language", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Film> films;
 
     @OneToMany(mappedBy = "originalLanguage", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Film> originalLanguageFilms;
 
     @PrePersist
