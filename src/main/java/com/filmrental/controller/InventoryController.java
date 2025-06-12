@@ -15,7 +15,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,6 +35,7 @@ public class InventoryController {
     @Autowired
     private InventoryMapper inventoryMapper;
 
+    //fetching all the inventory records from the inventory table in our database
     @GetMapping("/all")
     public ResponseEntity<Page<InventoryDTO>> getAllInventory(
             @RequestParam(defaultValue = "0") int page,
@@ -48,7 +48,7 @@ public class InventoryController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-
+    //adds a new record in DB
     @PostMapping("/add")
     public ResponseEntity<String> addInventory(@RequestBody InventoryDTO inventoryDTO) {
         try {
@@ -72,8 +72,9 @@ public class InventoryController {
         }
     }
 
+    //fetches film name and total count of each
     @GetMapping("/films")
-    public ResponseEntity<List<Object[]>> getInventoryCountByFilm() {
+    public ResponseEntity<List<Object[]>> getInventoryCountByFilm(){
         try {
             List<Object[]> results = inventoryRepository.findInventoryCountByFilm();
             return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
@@ -81,7 +82,7 @@ public class InventoryController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-
+    //fetches count for each film in specific store
     @GetMapping("/store/{id}")
     public ResponseEntity<List<Object[]>> getInventoryByStore(@PathVariable Integer id) {
         try {
@@ -96,7 +97,7 @@ public class InventoryController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-
+    //displays the count of specific film in all stores
     @GetMapping("/film/{id}")
     public ResponseEntity<List<Object[]>> getInventoryByFilm(@PathVariable Integer id) {
         try {
@@ -111,7 +112,7 @@ public class InventoryController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-
+    //display count of specific film at specific store
     @GetMapping("/film/{filmId}/store/{storeId}")
     public ResponseEntity<Object[]> getInventoryByFilmAndStore(@PathVariable Integer filmId, @PathVariable Integer storeId) {
         try {
