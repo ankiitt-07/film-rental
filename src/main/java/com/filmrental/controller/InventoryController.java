@@ -8,21 +8,27 @@ import com.filmrental.model.entity.Store;
 import com.filmrental.repository.FilmRepository;
 import com.filmrental.repository.InventoryRepository;
 import com.filmrental.repository.StoreRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/inventory")
 public class InventoryController {
+
+    private static final Logger logger = LoggerFactory.getLogger(InventoryController.class);
 
     @Autowired
     private InventoryRepository inventoryRepository;
@@ -45,13 +51,16 @@ public class InventoryController {
             Page<Inventory> inventory = inventoryRepository.findAll(pageable);
             return inventory.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(inventory.map(inventoryMapper::toDto));
         } catch (Exception e) {
+            logger.error("Error fetching inventories: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @PostMapping("/add")
-    public ResponseEntity<String> addInventory(@RequestBody InventoryDTO inventoryDTO) {
+    @PostMapping(value = "/add", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> addInventory(@RequestBody InventoryDTO inventoryDTO) {
+        Map<String, Object> response = new HashMap<>();
         try {
+            logger.info("Received InventoryDTO: {}", inventoryDTO);
             if (inventoryDTO.getFilmId() == null || inventoryDTO.getStoreId() == null) {
                 throw new IllegalArgumentException("Film ID and store ID are required");
             }
@@ -63,12 +72,18 @@ public class InventoryController {
             inventory.setFilm(film);
             inventory.setStore(store);
             inventory.setLastUpdate(LocalDateTime.now());
+            logger.info("Saving Inventory: {}", inventory);
             inventoryRepository.save(inventory);
-            return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
+            response.put("message", "Record Created Successfully");
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            logger.warn("Validation error: {}", e.getMessage());
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error adding inventory");
+            logger.error("Error adding inventory: {}", e.getMessage(), e);
+            response.put("error", "Internal Server Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
@@ -78,6 +93,7 @@ public class InventoryController {
             List<Object[]> results = inventoryRepository.findInventoryCountByFilm();
             return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
         } catch (Exception e) {
+            logger.error("Error fetching inventory count by film: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
@@ -91,8 +107,10 @@ public class InventoryController {
             List<Object[]> results = inventoryRepository.findInventoryCountByStore(id);
             return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
+            logger.warn("Validation error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
+            logger.error("Error fetching inventory by store: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
@@ -106,8 +124,10 @@ public class InventoryController {
             List<Object[]> results = inventoryRepository.findInventoryCountByFilmId(id);
             return results.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
+            logger.warn("Validation error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
+            logger.error("Error fetching inventory by film: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
@@ -121,8 +141,10 @@ public class InventoryController {
             Object[] result = inventoryRepository.findInventoryCountByFilmIdAndStore(filmId, storeId);
             return result == null ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
+            logger.warn("Validation error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
+            logger.error("Error fetching inventory by film and store: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

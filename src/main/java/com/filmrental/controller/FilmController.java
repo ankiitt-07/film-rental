@@ -65,7 +65,7 @@ public class FilmController {
         }
     }
 
-//    @PostMapping("/post")
+    //    @PostMapping("/post")
 //    public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
 //        try {
 //            if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
@@ -88,70 +88,70 @@ public class FilmController {
 //        }
 //    }
     @PostMapping
-public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
-    try {
-        // Validate required fields
-        if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Title and language ID are required");
-        }
-
-        // Check if film already exists
-        if (filmRepository.findByTitle(filmDTO.getTitle()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("Film with title '" + filmDTO.getTitle() + "' already exists");
-        }
-
-        // Fetch language
-        Language language = languageRepository.findById(filmDTO.getLanguageId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Language not found with ID: " + filmDTO.getLanguageId()));
-
-        // Create Film entity
-        Film film = new Film();
-        film.setTitle(filmDTO.getTitle());
-        film.setDescription(filmDTO.getDescription());
-        film.setReleaseYear(filmDTO.getReleaseYear());
-        film.setLanguage(language);
-        film.setOriginalLanguage(filmDTO.getOriginalLanguageId() != null
-                ? languageRepository.findById(filmDTO.getOriginalLanguageId()).orElse(null)
-                : null);
-        film.setRentalDuration(filmDTO.getRentalDuration());
-        film.setRentalRate(filmDTO.getRentalRate());
-        film.setLength(filmDTO.getLength());
-        film.setReplacementCost(filmDTO.getReplacementCost());
-        film.setRating(filmDTO.getRating());
-        film.setSpecialFeatures(filmDTO.getSpecialFeatures());
-        film.setLastUpdate(LocalDateTime.now());
-
-        // Handle actors
-        Set<Actor> actors = new HashSet<>();
-        if (filmDTO.getActorIds() != null && !filmDTO.getActorIds().isEmpty()) {
-            List<Actor> foundActors = actorRepository.findAllById(filmDTO.getActorIds());
-            if (foundActors.size() != filmDTO.getActorIds().size()) {
-                List<Integer> missingIds = filmDTO.getActorIds().stream()
-                        .filter(id -> foundActors.stream().noneMatch(a -> a.getActorId().equals(id)))
-                        .collect(Collectors.toList());
+    public ResponseEntity<String> addFilm(@RequestBody FilmDTO filmDTO) {
+        try {
+            // Validate required fields
+            if (filmDTO.getTitle() == null || filmDTO.getLanguageId() == null) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Actors not found for IDs: " + missingIds);
+                        .body("Title and language ID are required");
             }
-            actors.addAll(foundActors);
+
+            // Check if film already exists
+            if (filmRepository.findByTitle(filmDTO.getTitle()).isPresent()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body("Film with title '" + filmDTO.getTitle() + "' already exists");
+            }
+
+            // Fetch language
+            Language language = languageRepository.findById(filmDTO.getLanguageId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Language not found with ID: " + filmDTO.getLanguageId()));
+
+            // Create Film entity
+            Film film = new Film();
+            film.setTitle(filmDTO.getTitle());
+            film.setDescription(filmDTO.getDescription());
+            film.setReleaseYear(filmDTO.getReleaseYear());
+            film.setLanguage(language);
+            film.setOriginalLanguage(filmDTO.getOriginalLanguageId() != null
+                    ? languageRepository.findById(filmDTO.getOriginalLanguageId()).orElse(null)
+                    : null);
+            film.setRentalDuration(filmDTO.getRentalDuration());
+            film.setRentalRate(filmDTO.getRentalRate());
+            film.setLength(filmDTO.getLength());
+            film.setReplacementCost(filmDTO.getReplacementCost());
+            film.setRating(filmDTO.getRating());
+            film.setSpecialFeatures(filmDTO.getSpecialFeatures());
+            film.setLastUpdate(LocalDateTime.now());
+
+            // Handle actors
+            Set<Actor> actors = new HashSet<>();
+            if (filmDTO.getActorIds() != null && !filmDTO.getActorIds().isEmpty()) {
+                List<Actor> foundActors = actorRepository.findAllById(filmDTO.getActorIds());
+                if (foundActors.size() != filmDTO.getActorIds().size()) {
+                    List<Integer> missingIds = filmDTO.getActorIds().stream()
+                            .filter(id -> foundActors.stream().noneMatch(a -> a.getActorId().equals(id)))
+                            .collect(Collectors.toList());
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Actors not found for IDs: " + missingIds);
+                }
+                actors.addAll(foundActors);
+            }
+            film.setActors(actors);
+
+            // Save the film
+            filmRepository.save(film);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body("Film created successfully with ID: " + film.getFilmId());
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error creating film: " + e.getMessage());
         }
-        film.setActors(actors);
-
-        // Save the film
-        filmRepository.save(film);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Film created successfully with ID: " + film.getFilmId());
-
-    } catch (IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(e.getMessage());
-    } catch (Exception e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error creating film: " + e.getMessage());
     }
-}
 
 
     @GetMapping("/title/{title}")
