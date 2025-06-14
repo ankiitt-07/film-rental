@@ -6,17 +6,8 @@ import com.filmrental.mapper.RentalMapper;
 import com.filmrental.model.dto.CustomerDTO;
 import com.filmrental.model.dto.FilmDTO;
 import com.filmrental.model.dto.RentalDTO;
-import com.filmrental.model.entity.Customer;
-import com.filmrental.model.entity.Film;
-import com.filmrental.model.entity.Inventory;
-import com.filmrental.model.entity.Rental;
-import com.filmrental.model.entity.Staff;
-import com.filmrental.model.entity.Store;
-import com.filmrental.repository.CustomerRepository;
-import com.filmrental.repository.InventoryRepository;
-import com.filmrental.repository.RentalRepository;
-import com.filmrental.repository.StaffRepository;
-import com.filmrental.repository.StoreRepository;
+import com.filmrental.model.entity.*;
+import com.filmrental.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +28,9 @@ public class RentalController {
     private RentalRepository rentalRepository;
 
     @Autowired
+    private RentalMapper rentalMapper;
+
+    @Autowired
     private CustomerRepository customerRepository;
 
     @Autowired
@@ -47,9 +41,6 @@ public class RentalController {
 
     @Autowired
     private StoreRepository storeRepository;
-
-    @Autowired
-    private RentalMapper rentalMapper;
 
     @Autowired
     private FilmMapper filmMapper;
@@ -64,7 +55,21 @@ public class RentalController {
         try {
             Pageable pageable = PageRequest.of(page, size);
             Page<Rental> rentals = rentalRepository.findAll(pageable);
-            return rentals.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(rentals.map(rentalMapper::toDto));
+            Page<RentalDTO> rentalDTOs = rentals.map(rentalMapper::toDto);
+            return ResponseEntity.ok(rentalDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<RentalDTO> getRentalById(@PathVariable Integer id) {
+        try {
+            Rental rental = rentalRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Rental not found with ID: " + id));
+            return ResponseEntity.ok(rentalMapper.toDto(rental));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -97,15 +102,56 @@ public class RentalController {
         }
     }
 
+    @PutMapping("/update/{id}")
+    public ResponseEntity<String> updateRental(@PathVariable Integer id, @RequestBody RentalDTO rentalDTO) {
+        try {
+            if (id <= 0 || rentalDTO.getCustomerId() == null || rentalDTO.getInventoryId() == null || rentalDTO.getStaffId() == null) {
+                throw new IllegalArgumentException("Invalid rental ID or missing required fields");
+            }
+            Rental rental = rentalRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Rental not found with ID: " + id));
+            Customer customer = customerRepository.findById(rentalDTO.getCustomerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + rentalDTO.getCustomerId()));
+            Inventory inventory = inventoryRepository.findById(rentalDTO.getInventoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("Inventory not found with ID: " + rentalDTO.getInventoryId()));
+            Staff staff = staffRepository.findById(rentalDTO.getStaffId())
+                    .orElseThrow(() -> new IllegalArgumentException("Staff not found with ID: " + rentalDTO.getStaffId()));
+            rental.setCustomer(customer);
+            rental.setInventory(inventory);
+            rental.setStaff(staff);
+            rental.setRentalDate(rentalDTO.getRentalDate() != null ? rentalDTO.getRentalDate() : rental.getRentalDate());
+            rental.setReturnDate(rentalDTO.getReturnDate());
+            rental.setLastUpdate(LocalDateTime.now());
+            rentalRepository.save(rental);
+            return ResponseEntity.ok("Rental updated successfully");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating rental");
+        }
+    }
+
+    @PutMapping("/update/return/{id}")
+    public ResponseEntity<RentalDTO> updateReturnDate(@PathVariable Integer id) {
+        try {
+            Rental rental = rentalRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Rental not found with ID: " + id));
+            rental.setReturnDate(LocalDateTime.now());
+            rental.setLastUpdate(LocalDateTime.now());
+            rentalRepository.save(rental);
+            return ResponseEntity.ok(rentalMapper.toDto(rental));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     @GetMapping("/toptenfilms")
     public ResponseEntity<List<Object[]>> getTopTenRentedFilms() {
         try {
-            Pageable pageable = PageRequest.of(0, 10);
-            Page<Object[]> results = rentalRepository.findTopTenRentedFilms(pageable);
-            List<Object[]> transformedResults = results.getContent().stream()
-                    .map(row -> new Object[]{filmMapper.toDto((Film) row[0]), row[1]})
-                    .collect(Collectors.toList());
-            return transformedResults.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(transformedResults);
+            List<Object[]> topFilms = rentalRepository.findTopTenRentedFilms();
+            return ResponseEntity.ok(topFilms);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -114,19 +160,12 @@ public class RentalController {
     @GetMapping("/toptenfilms/store/{id}")
     public ResponseEntity<List<Object[]>> getTopTenRentedFilmsByStore(@PathVariable Integer id) {
         try {
-            if (id <= 0) {
-                throw new IllegalArgumentException("Invalid store ID");
-            }
-            storeRepository.findById(id)
+            Store store = storeRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + id));
-            Pageable pageable = PageRequest.of(0, 10);
-            Page<Object[]> results = rentalRepository.findTopTenRentedFilmsByStore(id, pageable);
-            List<Object[]> transformedResults = results.getContent().stream()
-                    .map(row -> new Object[]{filmMapper.toDto((Film) row[0]), row[1]})
-                    .collect(Collectors.toList());
-            return transformedResults.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(transformedResults);
+            List<Object[]> topFilms = rentalRepository.findTopTenRentedFilmsByStore(id);
+            return ResponseEntity.ok(topFilms);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -135,18 +174,13 @@ public class RentalController {
     @GetMapping("/due/store/{id}")
     public ResponseEntity<List<CustomerDTO>> getCustomersWithDueRentalsByStore(@PathVariable Integer id) {
         try {
-            if (id <= 0) {
-                throw new IllegalArgumentException("Invalid store ID");
-            }
-            storeRepository.findById(id)
+            Store store = storeRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Store not found with ID: " + id));
             List<Customer> customers = rentalRepository.findCustomersWithDueRentalsByStore(id);
-            List<CustomerDTO> customerDTOs = customers.stream()
-                    .map(customerMapper::toDto)
-                    .collect(Collectors.toList());
-            return customerDTOs.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(customerDTOs);
+            List<CustomerDTO> customerDTOs = customers.stream().map(customerMapper::toDto).collect(Collectors.toList());
+            return ResponseEntity.ok(customerDTOs);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -155,30 +189,11 @@ public class RentalController {
     @GetMapping("/customer/{id}")
     public ResponseEntity<List<RentalDTO>> getRentalsByCustomer(@PathVariable Integer id) {
         try {
-            if (id <= 0) {
-                throw new IllegalArgumentException("Invalid customer ID");
-            }
+            Customer customer = customerRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + id));
             List<Rental> rentals = rentalRepository.findByCustomer_CustomerId(id);
-            return rentals.isEmpty() ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(null) : ResponseEntity.ok(rentals.stream().map(rentalMapper::toDto).collect(Collectors.toList()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
-    @PutMapping("/update/return/{id}")
-    public ResponseEntity<RentalDTO> updateReturnDate(@PathVariable Integer id) {
-        try {
-            if (id <= 0) {
-                throw new IllegalArgumentException("Invalid rental ID");
-            }
-            Rental rental = rentalRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Rental not found with ID: " + id));
-            rental.setReturnDate(LocalDateTime.now());
-            rental.setLastUpdate(LocalDateTime.now());
-            Rental updatedRental = rentalRepository.save(rental);
-            return ResponseEntity.ok(rentalMapper.toDto(updatedRental));
+            List<RentalDTO> rentalDTOs = rentals.stream().map(rentalMapper::toDto).collect(Collectors.toList());
+            return ResponseEntity.ok(rentalDTOs);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
@@ -189,15 +204,12 @@ public class RentalController {
     @GetMapping("/{id}/film")
     public ResponseEntity<FilmDTO> getFilmByRentalId(@PathVariable Integer id) {
         try {
-            if (id <= 0) {
-                throw new IllegalArgumentException("Invalid rental ID");
-            }
             Rental rental = rentalRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Rental not found with ID: " + id));
-            FilmDTO filmDTO = filmMapper.toDto(rental.getInventory().getFilm());
-            return ResponseEntity.ok(filmDTO);
+            Film film = rental.getInventory().getFilm();
+            return ResponseEntity.ok(filmMapper.toDto(film));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
