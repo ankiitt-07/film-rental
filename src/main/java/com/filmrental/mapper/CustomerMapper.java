@@ -4,6 +4,8 @@ import com.filmrental.model.dto.CustomerDTO;
 import com.filmrental.model.entity.Customer;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 @Component
 public class CustomerMapper {
 
@@ -19,7 +21,7 @@ public class CustomerMapper {
         dto.setEmail(customer.getEmail());
         dto.setAddressId(customer.getAddress() != null ? customer.getAddress().getAddressId() : null);
         dto.setActive(customer.getActive());
-        dto.setCreateDate(customer.getCreateDate());
+        dto.setCreateDate(LocalDate.from(customer.getCreateDate()));
         return dto;
     }
 
@@ -33,7 +35,7 @@ public class CustomerMapper {
         customer.setLastName(dto.getLastName());
         customer.setEmail(dto.getEmail());
         customer.setActive(dto.getActive());
-        customer.setCreateDate(dto.getCreateDate());
+        customer.setCreateDate(dto.getCreateDate().atStartOfDay());
         return customer;
     }
 }

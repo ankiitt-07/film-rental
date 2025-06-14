@@ -411,7 +411,7 @@ public class CustomerController {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
             }
             Customer customer = customerMapper.toEntity(customerDTO);
-            customer.setCreateDate(LocalDate.now());
+            customer.setCreateDate(LocalDate.now().atStartOfDay());
             customer.setLastUpdate(LocalDateTime.now());
             customerRepository.save(customer);
             return ResponseEntity.status(HttpStatus.CREATED).body("Record Created Successfully");
